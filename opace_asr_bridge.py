@@ -242,7 +242,24 @@ def main():
             asr_chars.append(ch)
             asr_t0.append(t0_ + (t1_ - t0_) * ci / len(hira))
             asr_t1.append(t0_ + (t1_ - t0_) * (ci + 1) / len(hira))
+    # excise whisper's stock music-hallucinations (ご視聴ありがとうございました et
+    # al.) -- they aren't speech, and they make truly-untranscribable regions look
+    # like contradicting dialogue
+    HALLUC = ["ごしちょうありがとうございました", "ごせいちょうありがとうございました",
+              "チャンネルとうろくおねがいします"]
     asr_str = "".join(asr_chars)
+    cut = 0
+    for h in HALLUC:
+        i = asr_str.find(h)
+        while i >= 0:
+            del asr_chars[i : i + len(h)]
+            del asr_t0[i : i + len(h)]
+            del asr_t1[i : i + len(h)]
+            asr_str = "".join(asr_chars)
+            cut += len(h)
+            i = asr_str.find(h)
+    if cut:
+        print(f"  (excised {cut} hallucinated chars)")
     print(f"  {len(asr_str)} ASR chars (context-tagged hiragana)")
 
     # 3) official JA lines -> one normalized char stream with line boundaries.
@@ -596,6 +613,105 @@ def main():
             method[li] += "+snap"
             snapped += 1
     print(f"  consistency snap moved {snapped} lines")
+
+    # 5d3) times-level dedupe BEFORE extrapolation: the same utterance matched by
+    #    several official lines (catchphrase in scene + previews) must lose its
+    #    placement NOW -- a surviving false claim would seed 5d4 chains from a
+    #    false anchor. Scene continuity (placed neighbors nearby) wins, then
+    #    method strength.
+    def _ctx_prio(li):
+        ctx = any(
+            times[li2] and 0 < abs(li2 - li) <= 3
+            and abs(times[li2][0] - times[li][0]) <= 30
+            for li2 in range(max(li - 3, 0), min(li + 4, len(lines)))
+        )
+        m = method[li] or ""
+        return (ctx, 3 if m.startswith("cover") else (1 if m.startswith("rescue") else 2))
+
+    survivors = []
+    dup_cleared = 0
+    for li in sorted((i for i, t in enumerate(times) if t), key=lambda i: times[i][0]):
+        drop = False
+        for s_li in survivors[-3:]:
+            ov = min(times[li][1], times[s_li][1]) - max(times[li][0], times[s_li][0])
+            if ov > 0.6 * min(
+                times[li][1] - times[li][0], times[s_li][1] - times[s_li][0]
+            ) and fuzz.ratio(norm(lines[li][0]), norm(lines[s_li][0])) >= 65:
+                if _ctx_prio(li) > _ctx_prio(s_li):
+                    survivors.remove(s_li)
+                    times[s_li] = None
+                    method[s_li] = None
+                else:
+                    drop = True
+                dup_cleared += 1
+                break
+        if drop:
+            times[li] = None
+            method[li] = None
+        else:
+            survivors.append(li)
+    if dup_cleared:
+        print(f"  cleared {dup_cleared} duplicate claims")
+
+    # 5d4) one-sided contiguous extrapolation: whisper sometimes produces NOTHING
+    #    for a loud action scene (hallucinates ご視聴ありがとう instead), leaving a
+    #    sub-free hole with no evidence for any pass above. If an unplaced run is
+    #    vtt-CONTIGUOUS with a placed anchor (each step <=8s), lay it out by vtt
+    #    spacing from that anchor -- only into event-free, ASR-empty territory.
+    def asr_density(s, e):
+        i0 = bisect.bisect_left(asr_t0, s)
+        i1 = bisect.bisect_right(asr_t0, e)
+        return (i1 - i0) / max(e - s, 1.0)
+
+    def region_free(s, e, ignore_li):
+        for li2, t in enumerate(times):
+            if t and li2 != ignore_li and min(e, t[1]) - max(s, t[0]) > 0.3:
+                return False
+        return True
+
+    one_sided = 0
+    for anchor in [i for i, t in enumerate(times) if t]:
+        # BACKWARD only: dialogue leading up to an anchored line is continuous
+        # with it; walking FORWARD past an anchor steps over scene cuts (a cut
+        # right after a scene's last line resurrects cut content into silence)
+        for step in (-1,):
+            ref = anchor
+            li = anchor + step
+            while 0 <= li < len(lines) and not times[li]:
+                if abs(lines[ref][3] - lines[li][3]) > 8.0:
+                    break  # vtt gap: run is not contiguous with the anchor
+                if abs(lines[anchor][3] - lines[li][3]) > 35.0:
+                    break  # extrapolation horizon: vtt spacing is only locally
+                    #        reliable; long chains drift into unrelated territory
+                s = times[anchor][0] + (lines[li][3] - lines[anchor][3])
+                e = s + (lines[li][4] - lines[li][3])
+                ntxt = off_str[lines[li][1] : lines[li][2]]
+                ok = (
+                    len(ntxt) >= 4
+                    and not GRUNT.match(ntxt)
+                    and s > 0
+                    and region_free(s, e, li)
+                    and (
+                        asr_density(s, e) < 0.3  # silent/hallucination-excised
+                        or fuzz.partial_ratio(
+                            ntxt,
+                            asr_str[
+                                bisect.bisect_left(asr_t0, s) : bisect.bisect_right(
+                                    asr_t0, e
+                                )
+                            ],
+                        )
+                        >= INTERP_CORROB
+                    )
+                )
+                if ok:
+                    times[li] = (s, e)
+                    method[li] = "interp1"
+                    one_sided += 1
+                ref = li
+                li += step
+    if one_sided:
+        print(f"  one-sided extrapolation placed {one_sided} lines")
 
 
     # 5e) emit: extend ends toward the official cue's display duration (speech ends
