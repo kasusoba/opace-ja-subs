@@ -1,0 +1,13 @@
+# media (copy these to the PC manually — too big for git)
+*.mp4
+*.mkv
+*.wav
+
+# regenerable
+out/
+work/
+
+# local tooling
+.claude/
+__pycache__/
+.DS_Store
