@@ -1,41 +1,36 @@
 #!/usr/bin/env python3
 """
-One Pace -> Japanese subtitles via ASR BRIDGE.
+One Pace -> perfectly timed official Japanese subtitles, via ASR alignment.
+
+Usage
+-----
+  python opace_asr_bridge.py inputs/            # whole arc (folder of episode folders)
+  python opace_asr_bridge.py inputs/rd02/       # one episode folder
+  python opace_asr_bridge.py --onepace EP.mkv --jasub ep1.vtt ep2.vtt   # explicit
+
+An episode folder holds ONE video file + its official Japanese sub(s)
+(.vtt/.srt/.ass). Multiple subs = multi-source episode, used in filename order.
+The timed subtitle lands next to the video as <video>.ja.ass (players auto-load
+it), with a <video>.ja.ass.debug.tsv sidecar showing how every line was placed.
 
 How it works
 ------------
-Transcribe the One Pace audio with kotoba-whisper using WORD timestamps, giving a
-continuous stream of Japanese characters each tagged with the time it was spoken.
-Concatenate the OFFICIAL Japanese subtitle lines (their timing is ignored entirely)
-into a second character stream, and align the two streams with difflib's matching
-blocks (both run monotonically through the episode). Every official line whose
-characters are sufficiently covered by matched blocks is emitted at the time its
-characters were actually spoken in the One Pace audio.
-
-The ASR text is only an alignment key and is never shown: ASR errors fragment the
-matching blocks but the surviving blocks still pin each line to its true time.
-Official lines belonging to content One Pace cut simply never match and drop out.
-
-No dependency on the official sub being synced to any video, no probe-window
-granularity: per-line timing straight from the audio you're watching.
-
-Inputs
-------
-  --onepace   One Pace video OR audio (only the audio is used)
-  --jasub     official Japanese sub(s) (.srt/.ass/.vtt), in source-episode order
-              (multi-source episodes: pass them in watch order, they're concatenated)
-  --outdir    output folder (default ./out)
-  --model     faster-whisper model (default kotoba-tech/kotoba-whisper-v2.0-faster)
-  --device    cuda|cpu (default cuda)
+Transcribe the One Pace audio with faster-whisper (word timestamps), giving a
+stream of Japanese characters each tagged with the time it was spoken. Convert
+both that stream and the official subtitle lines to hiragana READINGS (MeCab),
+align the two character streams, and emit every sufficiently-covered official
+line at the time its characters were actually spoken. The ASR text itself is
+only an alignment key and is never shown; lines One Pace cut never match and
+drop out. Rescue/interpolation/extrapolation passes (see code) handle lines the
+ASR misheard or missed, with structural guards against placing anything wrong.
 
 Requirements
 ------------
-  ffmpeg on PATH ;  pip install faster-whisper rapidfuzz pysubs2
-  (CUDA: pip install nvidia-cublas-cu12 nvidia-cudnn-cu12 -- preloaded below)
+  ffmpeg on PATH; pip install faster-whisper rapidfuzz pysubs2 fugashi unidic-lite
+  CUDA: pip install nvidia-cublas-cu12 nvidia-cudnn-cu12 (preloaded below)
+  optional --separate: pip install "audio-separator[gpu]" (needs python3-dev)
 
-Run
----
-  python opace_asr_bridge.py --onepace RD02.mp4 --jasub ep01.ja.vtt --outdir out
+See README.md for the user guide and DEVLOG.md for design notes.
 """
 
 import os, re, sys, argparse, subprocess, time, unicodedata, difflib, bisect
@@ -159,28 +154,16 @@ def to_wav(src, dst):  # 16k mono wav; skip if already extracted
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--onepace", required=True)
-    ap.add_argument("--jasub", nargs="+", required=True)
-    ap.add_argument("--outdir", default="out")
-    ap.add_argument("--model", default="kotoba-tech/kotoba-whisper-v2.0-faster")
-    ap.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
-    ap.add_argument(
-        "--separate",
-        action="store_true",
-        help="isolate dialogue from music/SFX (BS-RoFormer) before transcribing; "
-        "helps action scenes where whisper hallucinates or goes deaf",
-    )
-    a = ap.parse_args()
-    os.makedirs(a.outdir, exist_ok=True)
+def process(a, onepace, jasubs, outdir):
+    """Align one episode: returns (placed, total_lines, dialogue_gap_count)."""
+    os.makedirs(outdir, exist_ok=True)
     os.makedirs("work", exist_ok=True)
 
-    # manual kill list: <outdir>/excludes.txt, one exact display text per line.
-    # For evidence-free disputes only a human can settle (One Pace cut a single
-    # line whose neighbors are all in -- no algorithm can know).
+    # manual kill list: <episode dir>/excludes.txt, one exact display text per
+    # line. For evidence-free disputes only a human can settle (One Pace cut a
+    # single line whose neighbors are all in -- no algorithm can know).
     excludes = set()
-    exc_path = os.path.join(a.outdir, "excludes.txt")
+    exc_path = os.path.join(outdir, "excludes.txt")
     if os.path.exists(exc_path):
         with open(exc_path, encoding="utf-8") as f:
             excludes = {l.strip() for l in f if l.strip()}
@@ -188,7 +171,7 @@ def main():
 
     # 1) extract One Pace audio (reuses ./work cache)
     print("extracting audio...")
-    stem = os.path.splitext(os.path.basename(a.onepace))[0]
+    stem = os.path.splitext(os.path.basename(onepace))[0]
     wav = os.path.join("work", stem + ".wav")  # per-episode name, NOT shared
     if a.separate:
         # vocal isolation wants quality input (44.1k stereo); whisper wants 16k
@@ -197,8 +180,8 @@ def main():
         if not (os.path.exists(wav) and os.path.getsize(wav) > 0):
             hifi = os.path.join("work", stem + ".hifi.wav")
             if not (os.path.exists(hifi) and os.path.getsize(hifi) > 0):
-                cmd = ["ffmpeg", "-y", "-i", a.onepace]
-                idx = jpn_audio_idx(a.onepace)
+                cmd = ["ffmpeg", "-y", "-i", onepace]
+                idx = jpn_audio_idx(onepace)
                 if idx is not None:
                     print(f"  (multi-audio file: selecting jpn track, stream #{idx})")
                     cmd += ["-map", f"0:{idx}"]
@@ -223,7 +206,7 @@ def main():
         else:
             print(f"  (reusing {os.path.basename(wav)})")
     else:
-        to_wav(a.onepace, wav)
+        to_wav(onepace, wav)
 
     # 2) transcribe with word timestamps -> per-char (char, start, end) stream.
     #    Words are cached to disk so matcher tweaks don't re-pay GPU minutes.
@@ -326,7 +309,7 @@ def main():
     pos = 0
     dropped_dups = 0
     recent = []  # (norm, vtt_start) of recently kept lines
-    for js in a.jasub:
+    for js in jasubs:
         subs = pysubs2.load(js)
         for ev in subs:
             if ev.is_comment:
@@ -346,7 +329,7 @@ def main():
     off_str = "".join(off_parts)
     if dropped_dups:
         print(f"  ({dropped_dups} rollup-duplicate cues dropped)")
-    print(f"  {len(lines)} official lines ({len(off_str)} chars) from {len(a.jasub)} file(s)")
+    print(f"  {len(lines)} official lines ({len(off_str)} chars) from {len(jasubs)} file(s)")
 
     # 4) align the two char streams; both are monotonic through the episode.
     #    autojunk=False is essential: with chars, every symbol is "popular".
@@ -941,7 +924,7 @@ def main():
             pysubs2.SSAEvent(start=int(max(s, 0) * 1000), end=int(e * 1000), text=txt)
         )
     out.sort()
-    dst = os.path.join(a.outdir, stem + ".ja.ass")
+    dst = os.path.join(outdir, stem + ".ja.ass")
     out.save(dst)
 
     # sidecar for tracing: how every official line was (or wasn't) placed
@@ -975,10 +958,9 @@ def main():
             f"line char coverage   : median {100 * cs[len(cs) // 2]:.0f}%  "
             f"(placed lines are >= {100 * MIN_COVER:.0f}%)"
         )
+    dialogue_gaps = 0
     if gaps:
         print("gaps > 20s:")
-        import bisect
-
         for g0, g1 in gaps[:10]:
             # a silent gap is a song/transition; a DIALOGUE-DENSE gap means the
             # official subs don't cover content that is audibly there -- i.e.
@@ -991,9 +973,114 @@ def main():
                 sample = asr_str[ai0 : ai0 + 40]
                 print(f"  {hms(g0)} -> {hms(g1)}  *** DIALOGUE, UNMATCHED -- missing a sub source? ***")
                 print(f"      ASR heard: {sample}...")
+                dialogue_gaps += 1
             else:
                 print(f"  {hms(g0)} -> {hms(g1)}  (quiet: song/transition, OK)")
     print(f"saved -> {dst}")
+    return placed, len(lines), dialogue_gaps
+
+
+VIDEO_EXT = (".mkv", ".mp4", ".m4v", ".avi", ".webm")
+SUB_EXT = (".vtt", ".srt", ".ass")
+
+
+def find_episode(d):
+    """(video, [subs]) for an episode dir, or (None, []) if it isn't one.
+    Subs sort by filename = source-episode playback order (Netflix names sort
+    naturally: S01E02 < S01E19). Generated *.ja.ass outputs are not inputs."""
+    videos, subs = [], []
+    for f in sorted(os.listdir(d)):
+        p = os.path.join(d, f)
+        if not os.path.isfile(p):
+            continue
+        if f.lower().endswith(VIDEO_EXT):
+            videos.append(p)
+        elif f.lower().endswith(SUB_EXT) and not f.endswith(".ja.ass"):
+            subs.append(p)
+    if len(videos) == 1 and subs:
+        return videos[0], subs
+    return None, []
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Time official Japanese subtitles to One Pace episodes by "
+        "aligning them against the episode's own audio (ASR).",
+        epilog="Folder mode: each episode lives in its own folder holding ONE "
+        "video file plus its official Japanese sub(s) (.vtt/.srt/.ass; multiple "
+        "subs = multi-source episode, sorted by filename in playback order). "
+        "Point this script at an episode folder, or at an arc folder containing "
+        "episode folders, and the timed .ja.ass lands next to each video.",
+    )
+    ap.add_argument(
+        "paths",
+        nargs="*",
+        help="episode folder(s) and/or arc folder(s) of episode folders",
+    )
+    ap.add_argument("--onepace", help="explicit mode: One Pace video/audio file")
+    ap.add_argument("--jasub", nargs="+", help="explicit mode: official JA sub(s)")
+    ap.add_argument("--outdir", help="explicit mode: output folder")
+    ap.add_argument("--model", default="large-v3", help="faster-whisper model (default %(default)s)")
+    ap.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
+    ap.add_argument("--force", action="store_true", help="redo episodes whose .ja.ass already exists")
+    ap.add_argument(
+        "--separate",
+        action="store_true",
+        help="isolate dialogue from music/SFX (BS-RoFormer) before transcribing; "
+        "second-opinion tool for hallucination-heavy episodes, not the default",
+    )
+    a = ap.parse_args()
+
+    if a.onepace:  # explicit single-episode mode
+        if not a.jasub:
+            ap.error("--onepace requires --jasub")
+        process(a, a.onepace, a.jasub, a.outdir or os.path.dirname(a.onepace) or ".")
+        return
+    if not a.paths:
+        ap.error("give episode/arc folder(s), or use --onepace/--jasub")
+
+    # discover episodes: each path is an episode dir or a dir of episode dirs
+    episodes = []  # (dir, video, subs)
+    for path in a.paths:
+        if not os.path.isdir(path):
+            sys.exit(f"not a folder: {path}")
+        v, s = find_episode(path)
+        if v:
+            episodes.append((path, v, s))
+            continue
+        found = False
+        for sub in sorted(os.listdir(path)):
+            d = os.path.join(path, sub)
+            if os.path.isdir(d):
+                v, s = find_episode(d)
+                if v:
+                    episodes.append((d, v, s))
+                    found = True
+        if not found:
+            sys.exit(
+                f"no episodes under {path} (an episode folder = exactly one "
+                f"video + at least one .vtt/.srt/.ass sub)"
+            )
+
+    summary = []
+    for d, video, subs in episodes:
+        name = os.path.basename(os.path.normpath(d))
+        done = os.path.splitext(video)[0] + ".ja.ass"
+        if os.path.exists(done) and not a.force:
+            summary.append((name, "skipped (done; --force to redo)"))
+            continue
+        print(f"\n=== {name}: {os.path.basename(video)} + {len(subs)} sub(s) ===")
+        try:
+            placed, total, dgaps = process(a, video, subs, d)
+            note = f"{placed}/{total} lines"
+            if dgaps:
+                note += f"  *** {dgaps} unmatched DIALOGUE gap(s) -- check report! ***"
+            summary.append((name, note))
+        except Exception as e:
+            summary.append((name, f"FAILED: {e}"))
+    print("\n=== ARC SUMMARY ===")
+    for name, note in summary:
+        print(f"  {name:12s} {note}")
 
 
 if __name__ == "__main__":
