@@ -586,6 +586,7 @@ def main():
     frozen = list(times)
     placed_lis = [i for i, t in enumerate(frozen) if t]
     snapped = 0
+    junked = 0
     for ix, li in enumerate(placed_lis):
         if ix == 0 or ix == len(placed_lis) - 1 or method[li] == "interp":
             continue
@@ -594,6 +595,17 @@ def main():
         d_nx = lines[nx][3] - lines[li][3]
         pred_pv = frozen[pv][0] + d_pv
         pred_nx = frozen[nx][0] - d_nx
+        # a TINY line sitting far from BOTH neighbor predictions matched the
+        # wrong instance entirely (あったぞ on the OP song's ありったけ) -- drop
+        if (
+            lines[li][2] - lines[li][1] <= 4
+            and abs(frozen[li][0] - pred_pv) > 6
+            and abs(frozen[li][0] - pred_nx) > 6
+        ):
+            times[li] = None
+            method[li] = None
+            junked += 1
+            continue
         if abs(pred_pv - pred_nx) > 2.5:
             # neighbors disagree: a cut lies somewhere here. But if ONE neighbor
             # is vtt-CLOSE (same beat, <=3s -- no cut that tight), its one-sided
@@ -624,7 +636,7 @@ def main():
             times[li] = (pred, pred + (e0 - s0))
             method[li] += "+snap"
             snapped += 1
-    print(f"  consistency snap moved {snapped} lines")
+    print(f"  consistency snap moved {snapped} lines, junked {junked} tiny strays")
 
     # 5d3) times-level dedupe BEFORE extrapolation: the same utterance matched by
     #    several official lines (catchphrase in scene + previews) must lose its
@@ -742,8 +754,22 @@ def main():
                     one_sided += 1
                 ref = li
                 li += step
+    # an extrapolated line whose entire run failed to place (1 of 7 in a cut
+    # scene) has no scene support -- evidence-free placements need company
+    unsupported = 0
+    for li in [i for i, m in enumerate(method) if m == "interp1"]:
+        if not any(
+            times[li2] and 0 < abs(li2 - li) <= 3
+            for li2 in range(max(li - 3, 0), min(li + 4, len(lines)))
+        ):
+            times[li] = None
+            method[li] = None
+            unsupported += 1
     if one_sided:
-        print(f"  one-sided extrapolation placed {one_sided} lines")
+        print(
+            f"  one-sided extrapolation placed {one_sided} lines"
+            + (f" (dropped {unsupported} unsupported)" if unsupported else "")
+        )
 
 
     # 5e) emit: extend ends toward the official cue's display duration (speech ends
