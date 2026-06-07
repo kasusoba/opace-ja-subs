@@ -73,6 +73,10 @@ SPAN_MAX_X = 2.5  # cover span > this x the official cue duration = straddling j
 # A kanji in the display text overrides: 撃て！/効かーん！ are words, not grunts.
 GRUNT = re.compile(r"^[ぁ-おかきはひふへほわやゆよゃゅょんっーう…]+$")
 LEXICAL = re.compile(r"[一-鿿]")
+
+# known song lyrics (normalized hiragana) -- gaps containing these are themes,
+# not missing content. Extend as new OPs/EDs appear across arcs.
+SONG_HINTS = ("ありったけのゆめをかきあつめ", "さがしものさがしにいくのさ")
 PAD_S = 0.15  # s; pad emitted lines around first/last matched char
 MIN_DUR = 0.40  # s; minimum emitted line duration
 
@@ -299,6 +303,21 @@ def process(a, onepace, jasubs, outdir):
             i = asr_str.find(h)
     if cut:
         print(f"  (excised {cut} hallucinated chars)")
+    # whisper's OTHER hallucination species: repetition loops ("DXは私の体を…"
+    # xN over noisy audio). Collapse immediate repeats of any short chunk.
+    loop_cut = 0
+    while True:
+        m = re.search(r"(.{6,40}?)\1{2,}", asr_str)
+        if not m:
+            break
+        keep_end = m.start() + len(m.group(1))
+        del asr_chars[keep_end : m.end()]
+        del asr_t0[keep_end : m.end()]
+        del asr_t1[keep_end : m.end()]
+        loop_cut += m.end() - keep_end
+        asr_str = "".join(asr_chars)
+    if loop_cut:
+        print(f"  (collapsed {loop_cut} repetition-loop chars)")
     print(f"  {len(asr_str)} ASR chars (context-tagged hiragana)")
 
     # 3) official JA lines -> one normalized char stream with line boundaries.
@@ -961,21 +980,51 @@ def process(a, onepace, jasubs, outdir):
     dialogue_gaps = 0
     if gaps:
         print("gaps > 20s:")
+        unplaced_norms = [
+            off_str[p0:p1] for li, (d_, p0, p1, _, _) in enumerate(lines) if not times[li]
+        ]
         for g0, g1 in gaps[:10]:
-            # a silent gap is a song/transition; a DIALOGUE-DENSE gap means the
-            # official subs don't cover content that is audibly there -- i.e.
-            # a missing subtitle source file (this is how RD03's uncredited
-            # Ep3 segment was caught)
+            # quiet gap = song/transition. Dense gap is classified further:
+            # known lyrics -> theme; resembles an UNPLACED official line ->
+            # garbled-but-present (ASR mush, content not actually missing);
+            # otherwise -> likely a missing subtitle source (how RD03's
+            # mis-mapped segment was caught).
             ai0 = bisect.bisect_left(asr_t0, g0)
             ai1 = bisect.bisect_right(asr_t0, g1)
-            density = (ai1 - ai0) / max(g1 - g0, 1)
-            if density > 0.5:
-                sample = asr_str[ai0 : ai0 + 40]
-                print(f"  {hms(g0)} -> {hms(g1)}  *** DIALOGUE, UNMATCHED -- missing a sub source? ***")
-                print(f"      ASR heard: {sample}...")
-                dialogue_gaps += 1
-            else:
+            gap_txt = asr_str[ai0:ai1]
+            density = len(gap_txt) / max(g1 - g0, 1)
+            if density <= 0.5:
                 print(f"  {hms(g0)} -> {hms(g1)}  (quiet: song/transition, OK)")
+            elif any(h in gap_txt for h in SONG_HINTS):
+                print(f"  {hms(g0)} -> {hms(g1)}  (opening/ending theme, OK)")
+            else:
+                # do the subs have an unplaced run that could OWN this gap? The
+                # flanking placed lines bracket it in line order: if the official
+                # time span between them roughly fills the gap, the content is in
+                # the subs but the audio was too garbled to match. If the flanking
+                # lines are vtt-adjacent, the subs have nothing to offer -> a sub
+                # source is genuinely missing (the RD03 case).
+                placed_by_t = sorted(
+                    (t[0], t[1], li) for li, t in enumerate(times) if t
+                )
+                li0 = max((p for p in placed_by_t if p[1] <= g0 + 0.5), default=None)
+                li1 = min((p for p in placed_by_t if p[0] >= g1 - 0.5), default=None)
+                vtt_between = 0
+                if li0 and li1:
+                    vtt_between = max(0, lines[li1[2]][3] - lines[li0[2]][4])
+                fuzz_best = max(
+                    (fuzz.partial_ratio(n, gap_txt[:200]) for n in unplaced_norms if len(n) >= 5),
+                    default=0,
+                )
+                if vtt_between >= 0.5 * (g1 - g0) or fuzz_best >= 55:
+                    print(
+                        f"  {hms(g0)} -> {hms(g1)}  (garbled audio: content IS in "
+                        f"the subs but unmatchable -- noisy scene)"
+                    )
+                else:
+                    print(f"  {hms(g0)} -> {hms(g1)}  *** DIALOGUE, UNMATCHED -- missing a sub source? ***")
+                    dialogue_gaps += 1
+                print(f"      ASR heard: {gap_txt[:40]}...")
     print(f"saved -> {dst}")
     return placed, len(lines), dialogue_gaps
 
@@ -1039,32 +1088,35 @@ def main():
     if not a.paths:
         ap.error("give episode/arc folder(s), or use --onepace/--jasub")
 
-    # discover episodes: each path is an episode dir or a dir of episode dirs
+    # discover episodes recursively: an episode folder = exactly one video +
+    # at least one sub; any other folder is just a container (arcs can nest:
+    # inputs/orange town/1/, inputs/rd02/, ... organize however you like)
+    def discover(root):
+        v, s = find_episode(root)
+        if v:
+            return [(root, v, s)]
+        eps = []
+        for sub in sorted(os.listdir(root)):
+            d = os.path.join(root, sub)
+            if os.path.isdir(d):
+                eps += discover(d)
+        return eps
+
     episodes = []  # (dir, video, subs)
     for path in a.paths:
         if not os.path.isdir(path):
             sys.exit(f"not a folder: {path}")
-        v, s = find_episode(path)
-        if v:
-            episodes.append((path, v, s))
-            continue
-        found = False
-        for sub in sorted(os.listdir(path)):
-            d = os.path.join(path, sub)
-            if os.path.isdir(d):
-                v, s = find_episode(d)
-                if v:
-                    episodes.append((d, v, s))
-                    found = True
+        found = discover(path)
         if not found:
             sys.exit(
                 f"no episodes under {path} (an episode folder = exactly one "
                 f"video + at least one .vtt/.srt/.ass sub)"
             )
+        episodes += found
 
     summary = []
     for d, video, subs in episodes:
-        name = os.path.basename(os.path.normpath(d))
+        name = os.path.relpath(d)
         done = os.path.splitext(video)[0] + ".ja.ass"
         if os.path.exists(done) and not a.force:
             summary.append((name, "skipped (done; --force to redo)"))
@@ -1079,8 +1131,9 @@ def main():
         except Exception as e:
             summary.append((name, f"FAILED: {e}"))
     print("\n=== ARC SUMMARY ===")
+    width = max((len(n) for n, _ in summary), default=12) + 2
     for name, note in summary:
-        print(f"  {name:12s} {note}")
+        print(f"  {name:{width}s} {note}")
 
 
 if __name__ == "__main__":

@@ -26,24 +26,33 @@ Put each episode in its own folder: **one video + its official Japanese sub(s)**
 An episode cut from several source episodes gets several sub files — they're used
 in filename order, which matches playback order for normal naming (`S01E02` before `S01E19`).
 
+Folders can nest however you like — anything containing exactly one video plus
+sub file(s) is an episode; everything else is just organization:
+
 ```
 inputs/
-├── rd02/
-│   ├── [One Pace][2] Romance Dawn 02 [480p].mp4
-│   └── ワンピース.S01E01.WEBRip.Netflix.ja[cc].vtt
 ├── rd03/
 │   ├── [One Pace][3-5] Romance Dawn 03 [1080p].mkv
 │   ├── ワンピース.S01E02.WEBRip.Netflix.ja[cc].vtt      ← multi-source episode:
 │   └── ワンピース.S01E19.WEBRip.Netflix.ja[cc].vtt      ← one sub per source ep
-└── rd04/
-    └── ...
+├── rd04/
+│   └── ...
+└── orange town/
+    ├── 1/
+    │   ├── [One Pace][8-11] Orange Town 01 [1080p].mkv
+    │   ├── ワンピース.S01E04.WEBRip.Netflix.ja[cc].vtt
+    │   ├── ワンピース.S01E05.WEBRip.Netflix.ja[cc].vtt
+    │   └── ワンピース.S01E06.WEBRip.Netflix.ja[cc].vtt
+    ├── 2/
+    └── 3/
 ```
 
 Then:
 
 ```bash
-python opace_asr_bridge.py inputs/          # whole arc
-python opace_asr_bridge.py inputs/rd03/     # one episode
+python opace_asr_bridge.py inputs/                 # everything, recursively
+python opace_asr_bridge.py "inputs/orange town"    # one arc
+python opace_asr_bridge.py inputs/rd03/            # one episode
 ```
 
 First run downloads the Whisper model (~3 GB). Each episode takes ~3–5 minutes on a
