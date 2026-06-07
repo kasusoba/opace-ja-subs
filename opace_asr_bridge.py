@@ -74,8 +74,10 @@ CLUSTER_GAP_S = 3.0  # cover hits further apart than this are separate speech
 SPAN_MAX_X = 2.5  # cover span > this x the official cue duration = straddling junk
 
 # interjections/grunts (うう… きゃーっ ははっ): only place with acoustic evidence --
-# interpolating them guesses, and a wrong grunt is worse than a missing one
+# interpolating them guesses, and a wrong grunt is worse than a missing one.
+# A kanji in the display text overrides: 撃て！/効かーん！ are words, not grunts.
 GRUNT = re.compile(r"^[ぁ-おかきはひふへほわやゆよゃゅょんっーう…]+$")
+LEXICAL = re.compile(r"[一-鿿]")
 PAD_S = 0.15  # s; pad emitted lines around first/last matched char
 MIN_DUR = 0.40  # s; minimum emitted line duration
 
@@ -163,6 +165,16 @@ def main():
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     os.makedirs("work", exist_ok=True)
+
+    # manual kill list: <outdir>/excludes.txt, one exact display text per line.
+    # For evidence-free disputes only a human can settle (One Pace cut a single
+    # line whose neighbors are all in -- no algorithm can know).
+    excludes = set()
+    exc_path = os.path.join(a.outdir, "excludes.txt")
+    if os.path.exists(exc_path):
+        with open(exc_path, encoding="utf-8") as f:
+            excludes = {l.strip() for l in f if l.strip()}
+        print(f"  ({len(excludes)} excluded lines from {exc_path})")
 
     # 1) extract One Pace audio (reuses ./work cache)
     print("extracting audio...")
@@ -473,7 +485,7 @@ def main():
             continue
         for part in lines[li][0].split("\\N"):
             ptxt = norm(part)
-            if len(ptxt) < PART_MIN_CHARS or GRUNT.match(ptxt):
+            if (len(ptxt) < PART_MIN_CHARS or GRUNT.match(ptxt)) and not LEXICAL.search(part):
                 continue
             al = fuzz.partial_ratio_alignment(ptxt, asr_str[lo:hi])
             if al is not None and al.score >= RESCUE_SCORE and al.dest_end > al.dest_start:
@@ -556,7 +568,7 @@ def main():
             if k in partial_done:
                 continue  # already resolved as a partially-cut cue
             ntxt = off_str[lines[k][1] : lines[k][2]]
-            if len(ntxt) < 4 or GRUNT.match(ntxt):
+            if (len(ntxt) < 4 or GRUNT.match(ntxt)) and not LEXICAL.search(lines[k][0]):
                 continue  # no acoustic evidence for a grunt/short line -> leave it out
             if not gap_txt or fuzz.partial_ratio(ntxt, gap_txt) < INTERP_CORROB:
                 continue  # gap is silent or audibly contains something ELSE
@@ -653,6 +665,27 @@ def main():
     if dup_cleared:
         print(f"  cleared {dup_cleared} duplicate claims")
 
+    # 5d3.6) pre-extrapolation island drop: a false anchor (short line matching
+    #    ED lyrics) must die BEFORE 5d4, or its extrapolation chain becomes its
+    #    own alibi against the later island check.
+    pre_islands = 0
+    placed_now = sorted((i for i, t in enumerate(times) if t), key=lambda i: times[i][0])
+    for ix, li in enumerate(placed_now):
+        idx_near = any(
+            times[li2] and 0 < abs(li2 - li) <= 3
+            for li2 in range(max(li - 3, 0), min(li + 4, len(lines)))
+        )
+        op_near = (ix > 0 and times[li][0] - times[placed_now[ix - 1]][1] <= 30) or (
+            ix + 1 < len(placed_now)
+            and times[placed_now[ix + 1]][0] - times[li][1] <= 30
+        )
+        if not idx_near and not op_near:
+            times[li] = None
+            method[li] = None
+            pre_islands += 1
+    if pre_islands:
+        print(f"  dropped {pre_islands} pre-extrapolation islands")
+
     # 5d4) one-sided contiguous extrapolation: whisper sometimes produces NOTHING
     #    for a loud action scene (hallucinates ご視聴ありがとう instead), leaving a
     #    sub-free hole with no evidence for any pass above. If an unplaced run is
@@ -687,8 +720,7 @@ def main():
                 e = s + (lines[li][4] - lines[li][3])
                 ntxt = off_str[lines[li][1] : lines[li][2]]
                 ok = (
-                    len(ntxt) >= 4
-                    and not GRUNT.match(ntxt)
+                    (len(ntxt) >= 4 and not GRUNT.match(ntxt) or LEXICAL.search(lines[li][0]))
                     and s > 0
                     and region_free(s, e, li)
                     and (
@@ -811,6 +843,9 @@ def main():
     out = pysubs2.SSAFile()
     final_times = {}  # line_idx -> emitted (start, end), for the debug TSV
     prev_end = None
+    emit = [ev for ev in emit if ev[2].replace("\\N", " ") not in excludes
+            and ev[2] not in excludes]
+    placed = len(emit)
     for oi, (s, e, txt, vtt_dur, can_ext, eli) in enumerate(emit):
         # whisper clips onsets after silence (cut boundaries): when a SHORT span
         # (single word -- longer spans have solid onsets) is compressed well below
