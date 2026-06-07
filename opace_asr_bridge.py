@@ -38,7 +38,7 @@ Run
   python opace_asr_bridge.py --onepace RD02.mp4 --jasub ep01.ja.vtt --outdir out
 """
 
-import os, re, sys, argparse, subprocess, time, unicodedata, difflib
+import os, re, sys, argparse, subprocess, time, unicodedata, difflib, bisect
 
 # make pip-installed CUDA libs visible to ctranslate2: ld.so ignores LD_LIBRARY_PATH
 # changes after process start, so preload the .so files directly. (NB: nvidia.* are
@@ -59,6 +59,7 @@ def _preload_cuda_libs():
 _preload_cuda_libs()
 
 import pysubs2
+from rapidfuzz import fuzz
 
 # ---- tunables ----
 MIN_COVER = 0.50  # fraction of a line's chars that must be block-matched to place it
@@ -341,6 +342,11 @@ def main():
         span_dur = asr_t1[max(h for _, h in best)] - asr_t0[min(h for _, h in best)]
         if span_dur > max(SPAN_MAX_X * (ve - vs), ve - vs + 2.0):
             continue
+        # the ASR text under the span must actually resemble the line: block hits
+        # can be fragment noise (１発で当たった "matching" 俺は強いって on った/って)
+        span_txt = asr_str[min(h for _, h in best) : max(h for _, h in best) + 1]
+        if fuzz.ratio(ntxt, span_txt) < 45 and fuzz.partial_ratio(ntxt, span_txt) < 55:
+            continue
         if "\\N" in disp:
             # the edit may enter/leave MID-cue: if one display part has hits and
             # another has none, emit only the covered part(s)
@@ -382,8 +388,6 @@ def main():
     # 5b) rescue: an unplaced line between two placed neighbors can only live in
     #    the ASR span between them -- fuzzy-search just that window (monotonic by
     #    construction, so a decent score there is trustworthy)
-    from rapidfuzz import fuzz
-
     rescued = 0
     rescued_set = set()
     placed_idx = [i for i, p in enumerate(placement) if p]
@@ -618,11 +622,25 @@ def main():
     # dedupe: two events overlapping in time with near-identical text are one
     # utterance claimed twice (the catchphrase appears in several official lines
     # across episodes/previews). Keep the best-evidenced one.
-    def _prio(eli):
+    placed_set = sorted(i for i, t in enumerate(times) if t)
+
+    def _prio(ev):
+        eli = ev[5]
         if eli is None:
-            return 2  # part event
+            return (0, 2)  # part event
+        # scene continuity first: a line whose line-order neighbors are placed
+        # nearby in time is part of a scene; preview/orphan copies of the same
+        # text (catchphrases recur in next-episode previews) have no context
+        ctx = 0
+        j = bisect.bisect_left(placed_set, eli)
+        for li2 in placed_set[max(j - 3, 0) : j + 4]:
+            if li2 != eli and abs(li2 - eli) <= 3 and times[li2] and abs(
+                times[li2][0] - ev[0]
+            ) <= 30:
+                ctx = 1
+                break
         m = method[eli] or ""
-        return 3 if m.startswith("cover") else (1 if m.startswith("rescue") else 2)
+        return (ctx, 3 if m.startswith("cover") else (1 if m.startswith("rescue") else 2))
 
     kept = []
     dup_dropped = 0
@@ -633,7 +651,7 @@ def main():
             if ov > 0.6 * min(ev[1] - ev[0], kev[1] - kev[0]) and fuzz.ratio(
                 norm(ev[2]), norm(kev[2])
             ) >= 65:
-                if _prio(ev[5]) > _prio(kev[5]):
+                if _prio(ev) > _prio(kev):
                     kept.remove(kev)
                 else:
                     drop = True
