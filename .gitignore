@@ -2,12 +2,13 @@
 *.mp4
 *.mkv
 *.wav
+*Zone.Identifier
 
-# regenerable
-out/
+# regenerable caches
 work/
 
 # local tooling
+.venv/
 .claude/
 __pycache__/
 .DS_Store

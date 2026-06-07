@@ -1,8 +1,9 @@
 # One Pace → Japanese subtitles — project handoff
 
 Context for continuing this in Claude Code. Read this, then look at `opace_audio_align.py`
-and `debug_probe.py`. **Now continuing on the Windows PC (i3-12100F, RTX 3060 12GB, 32GB
-RAM)** — see "State as of 2026-06-07" below for why and for exactly where we are.
+and `debug_probe.py`. **Now on the Windows PC (i3-12100F, RTX 3060 12GB, 32GB RAM),
+running inside WSL2 — which only gets ~15GB of the 32GB, and the host sits >90% RAM
+while a run is live, so treat ~6GB python RSS as the practical ceiling.**
 
 ## Goal
 Watch **One Pace** (a fan recut of the One Piece anime that cuts filler) with
@@ -35,106 +36,276 @@ generated automatically (no reading ahead / no manual per-line work).
    (timed to source) onto the One Pace timeline. Zero ASR, official text AND timing.
    This is `opace_audio_align.py`.
 
-## State as of 2026-06-07 (RD02 run #1 done on the Mac — moved to PC after crashes)
+## State as of 2026-06-07 late night: PIVOTED TO ASR BRIDGE (`opace_asr_bridge.py`)
 
-### What happened
-First full RD02 run completed on the M1 MacBook (16GB). Results:
+The audio-alignment output below validated on paper but was BROKEN when watched
+(prime suspect: the Netflix VTT is not synced to `onepieceofficial01.mkv` — never
+verified — plus ±3s probe-window granularity at every segment boundary). Pivoted to
+approach #2, now implemented and producing plausible output on RD02:
 
-- Pipeline mechanics all work: ffmpeg extract → fingerprint (~1 min) → probe 420
-  windows (~2.5 min, much faster than feared) → cluster → map → save.
-- **420/420 windows were "confident" matches (conf ≥ 10) — but 0 segments formed,
-  0 JA lines placed.** The output `out/[One Pace][2] Romance Dawn 02 ....ja.ass`
-  from this run is EMPTY/garbage — ignore it.
-- 420/420 confident is itself suspicious (even transition/music windows matched);
-  MIN_CONF=10 may be too low, but that's secondary.
+### How `opace_asr_bridge.py` works (v4)
+1. Transcribe One Pace audio with faster-whisper **large-v3** on the 3060
+   (word timestamps; ~3min/episode; transcript cached in `work/asr_*.json` so
+   matcher tweaks are instant). NOT kotoba-whisper: its distil architecture
+   crashes CTranslate2 (`std::bad_alloc`) with word_timestamps=True.
+2. Normalize BOTH the ASR stream and the official JA lines to hiragana
+   (pykakasi) — kanji/kana orthography differences otherwise kill matching.
+3. difflib SequenceMatcher (autojunk=False!) between the two char streams; each
+   official line ≥50% covered by ≥2-char blocks is placed at the time its chars
+   were spoken (per-char times interpolated inside word timestamps).
+4. Rescue pass: unplaced lines between two placed neighbors are fuzzy-searched
+   (rapidfuzz partial_ratio_alignment ≥65) in just the ASR span between them.
+5. Official text only is emitted; ASR text is never shown. No VAD (it eats
+   dialogue over BGM; music hallucinations don't match anything → harmless).
 
-### Diagnosis (unconfirmed — confirm first on the PC)
-0 segments despite 420 hits means **no two consecutive windows ever had deltas within
-DELTA_TOL=0.4s** — i.e. `delta = off0 - t` is NOT constant within a contiguous chunk.
-That points at audalign's offset convention, not at the fan edit. Hypotheses for what
-`offset_seconds[0]` actually is, for a clip cut from One Pace time `t` whose true
-position in the source episode is `P`:
+### v13 refinements (second eyeball pass: all flagged misplacements were
+### short lines placed without acoustic evidence — fixed)
+- **Readings via MeCab/fugashi, tagged with context** (replaced pykakasi, which
+  misread 叩き→こうき; and whisper word-fragments must be CONCATENATED before
+  tagging or MeCab misreads 結構→けつかまえ). Lifted char match 60→72%.
+- **Grunts** (うう…/キャーッ/おい — GRUNT regex + length gates): never placed
+  without coverage evidence. TRADEOFF (user-accepted): a grunt ASR can't hear is
+  absent rather than guessed wrong.
+- **Interp hardened**: gap ratio 0.8–1.25 always + gap ASR text must corroborate
+  the line (partial_ratio ≥50) + silent gap = no interp (nobody spoke).
+- **Mid-cue cuts**: when one \N-part of a cue has hits and the other doesn't,
+  duration disambiguates: heard-span ≥70% of cue duration → concurrent speakers,
+  keep whole cue text; else → the other part was cut, emit heard part only.
+- **Cover hits clustered in time** (largest contiguous cluster, 3s gap max) so a
+  stray far-away 2-char hit can't stretch/misplace a line.
+- Debug sidecar `<out>.ja.ass.debug.tsv`: per official line, placement method
+  (cover/rescue/part/interp/-) + times — for fast trace sessions.
 
-| if offsets at t=60,63,66,69 look like… | convention | fix for step-4 delta |
-|---|---|---|
-| increasing with t (≈ t + C) | `off0 = P` | `delta = off0 - t` is already right → bug is elsewhere (check `_first`: maybe `offset_seconds[0]` is not the top-confidence entry — inspect the confidence list ordering in the debug dump) |
-| decreasing with t (≈ -(t + C)) | `off0 = -P` | `delta = -off0 - t` |
-| roughly constant across t | `off0` is already the segment shift | `delta = off0` (drop the `- t`) |
+### v14 (third eyeball pass — all 5 reports fixed, several to the exact second)
+- **Netflix CC rollup duplicates**: the VTT repeats identical cue text at
+  near-identical times; dedupe at load (same norm within 6s) or every copy stacks
+  on the same audio. Affects EVERY episode's VTT.
+- **Consistency snap**: official inter-line spacing survives wherever One Pace
+  didn't cut. When both placed neighbors predict the same start (±2.5s agreement
+  -> locally linear, no cut) and a line deviates >1.2s, snap it to the weighted
+  prediction. Fixes wrong-instance matches (何だ？ matching an earlier 何だ) and
+  ASR word-boundary blur — moved 9 lines, all verified against user's trace.
 
-`debug_probe.py` (in repo, paths are relative, Windows-safe) settles this: it extracts
-audio into a persistent `./work/` dir, fingerprints the source, probes windows at
-t = 60/63/66/69 (consecutive) + 300/600/900/1100 (scattered), and dumps the raw
-`offset_seconds[:5]` + `confidence[:5]` + available keys per match. Read the table
-above against its output, patch the `delta` line in `opace_audio_align.py` step 3
-(and the corresponding `op_s = s - sign*delta` mapping in steps 4–6 if the convention
-change affects it), re-run, validate.
+### v15–v18 (sub-second polish — each fix generalized from one user report)
+- Snap tolerance 0.4s for ≤3-char lines (whisper glues a reply's beat to the
+  previous line) and for regions where both neighbors agree ≤0.3s (provably
+  linear -> deviation = smear, not cut). v18 moves ~31 lines; if a future trace
+  finds a NEWLY-off line, tune this rule first.
+- Span refinement: trim edge chars with artifact durations (>3x lower-median or
+  zero-width) — whisper smears words across SFX (ルフィ 3s over rubber-band
+  sound, ピストル's スト 3.6s). Works from 4-char spans, lower-median base.
+- Onset reconstruction: after silence (cut boundaries) whisper clips word
+  onsets; when a span is <60% of the cue's official duration and there's room,
+  rebuild the start backward from the reliable end (end − cue duration).
+- All eyeball-traced lines (≈20 reports over 5 passes) verified to land within
+  ~0.5s of the user's called times; see debug TSV for placement provenance.
 
-### Why we left the Mac ⚠️
-The Mac kernel-panicked once (watchdog timeout, "18 swapfiles and LOW swap space")
-and later froze with the "out of application memory" dialog showing **28GB attributed
-to iTerm2** (= our terminal's child processes, i.e. the audalign work). 16GB RAM +
-~19GB free disk couldn't take it. **audalign's probe loop appears to balloon memory**
-— plausibly `ad.recognize()` accumulating per-clip fingerprints in the recognizer,
-or per-recognize alignment buffers not being freed across 420 calls.
+### RD02 result (v6 — eyeball-tested, user-approved start timing)
+320/400 official lines placed (80%); the rest is verified cut content, the OP theme
+song (00:29–02:30 — sung lyrics aren't in the dialogue VTT), and untranscribable
+screams. First eyeball pass (v4): start timing good on nearly every line. v5/v6
+fixed what that pass found: overlapping events (now clamped to next line's start,
+display-duration prior from the VTT), and ASR-deaf short lines (見せておやり,
+食い物ねえか cluster) now placed by a VTT-proportional interpolation pass — runs of
+unheard lines between placed neighbors are laid out proportionally when the OP gap ≈
+VTT gap (ratio 0.5–2.0 for runs ≤2, 0.8–1.25 for runs ≤6; near-1 ratio proves no cut
+inside the gap). Output: `out_asr/….ja.ass`. GPU does the work; system RAM is no
+longer a constraint (the old audio-align RAM notes below are historical).
 
-**On the PC (32GB): watch memory during the probe loop.** If python's working set
-climbs unbounded across windows, mitigate inside the loop, e.g.:
-- after each `ad.recognize(clip, ...)`, remove the clip's fingerprints from `rec` if
-  audalign stored them (inspect `rec.fingerprinted_files` / `rec.file_names`), or
-- recreate the recognizer every N windows from saved fingerprints
-  (`save_fingerprinted_files` / `load_fingerprinted_files`) — this is also the
-  building block for the planned parallelization, so it's not wasted work.
+**The fingerprint/audio-align method is DITCHED** (user verdict after eyeballing
+both with correct files): `opace_audio_align.py` is kept only as a forensic tool
+(its SEGMENT MAP cross-checks cut boundaries); `out_align/` can be deleted.
+
+### ASR bridge env
+`pip install faster-whisper rapidfuzz pykakasi pysubs2 nvidia-cublas-cu12
+nvidia-cudnn-cu12` (CUDA libs are ctypes-preloaded by the script — ld.so ignores
+post-start LD_LIBRARY_PATH; nvidia.* are namespace packages, use `__path__` not
+`__file__`). large-v3 CT2 model cached under `~/.cache/huggingface`.
+
+### ASR bridge next steps
+1. Eyeball RD02 (`mpv … --sub-file=out_asr/….ja.ass`).
+2. If good: try `--model deepdml/faster-whisper-large-v3-turbo-ct2` for batch
+   speed (turbo has real alignment heads, so word timestamps should work).
+3. Multi-source episodes (RD03 = Ep2+19): pass both VTTs in watch order —
+   concatenated official stream stays monotonic only if One Pace plays the
+   episodes in blocks; if interleaved, split the difflib alignment per source.
+4. Tunables if recall is short: MIN_COVER (0.50), MIN_BLOCK (2), RESCUE_SCORE (65).
+
+### Repo layout (reorganized 2026-06-07 after RD02 sign-off)
+```
+opace_asr_bridge.py   # THE pipeline (only script left)
+rd02/                 # video + VTT + generated .ja.ass (+ debug tsv)
+rd03/                 # same per episode; .ja.ass lands next to the video
+work/                 # caches: per-episode wav + ASR transcript json
+```
+The `.ja.ass` shares the video's stem -> mpv/VLC auto-load it. Deleted as unused
+(in git history if ever needed): `opace_audio_align.py`, `debug_probe.py`, the
+source episode mkv (the ASR bridge needs NO source videos — only One Pace files
++ official VTTs), audalign pickles/wavs. ~840MB freed.
+
+Script hardening for RD03+: per-episode wav names (was a shared `onepace.wav` —
+silent cross-episode cache poisoning), and explicit `jpn` audio-track selection
+for multi-audio releases (RD03's 1080p mkv carries jpn/eng/spa — the dual-audio
+trap from the "key facts" is now handled in code).
+
+### RD03 (2026-06-07 night) — DONE, pending eyeball; two structural lessons
+- 405/778 lines placed from E02+E19 VTTs; both remaining dialogue-flagged gaps
+  are the OP/ED songs (read the gap report's ASR sample to tell songs from
+  missing content).
+- **Don't trust the One Pace episode table**: it said RD03 = Ep2+19; the audio
+  showed a 3-min "Ep3-looking" block — which turned out to live in NETFLIX's
+  S01E02 (their episode boundaries ≠ TV's). E03's VTT was never needed. The
+  gap report's dialogue-density detector catches missing-source/mis-mapped
+  content automatically.
+- **One Pace REORDERS scenes within an episode** (RD03 plays part of E02's
+  ending before its middle). A single monotonic alignment drops displaced
+  chunks; the bridge now runs a SECOND difflib pass over (unmatched ASR) x
+  (unmatched official lines), which recovers internally-ordered displaced
+  chunks wherever they were moved.
+- Multi-source works: pass VTTs in playback-block order; blocks confirmed
+  non-interleaved (E02 0:58-19:28 incl. reordered chunk, E19 19:28-27:18).
+- RD03 trace round (4 reports, all fixed, RD02 regression-clean):
+  - one-sided snap: when neighbor predictions disagree (cut between) but ONE
+    neighbor is vtt-close (≤3s), its prediction still beats whisper drift.
+  - emit dedupe: the same utterance gets claimed by multiple official lines
+    (catchphrases recur across episodes AND in next-episode previews) — events
+    overlapping >60% with text similarity ≥65 keep only the best-evidenced.
+  - island drop (post-dedupe): a placed event with no neighbor within ±3 lines
+    or 30s is a stray (short line matching ED lyrics) — dropped.
+  - precision floor is ~±0.7s where whisper glues words across pauses and both
+    neighbor predictions disagree sub-second; accepted as-is.
+
+## Historical: audio-alignment state (superseded by the ASR bridge above)
+
+### The second bug: the RD02 file had ENGLISH dub audio ⚠️
+The original `[En CC][7CEC60A5].mp4` download had the English DUB track. Every run
+against it could only match music/SFX (the shared M&E track), never dialogue — that's
+why even the "good" ACC=4 run had big gaps and why lower ACC collapsed entirely.
+Replaced with `[En Sub][164BA736].mp4` (Japanese audio). Results transformed:
+
+| | EN audio ACC=4 | EN audio ACC=2 | JA audio ACC=2 |
+|---|---|---|---|
+| confident windows | 352/420 (M&E only) | 30/420 | **290/420** |
+| segments | 38 (2 garbage) | 7 | **22, zero garbage** |
+| JA lines placed | 123 | 23 | **355** (of 435 VTT cues; rest = cut content) |
+| peak RAM | 6.2 GB | 1.2 GB | ~1.2 GB |
+| runtime (warm cache) | ~8 min | ~3 min | **~2.5 min** |
+
+JA-audio map: source times strictly increase 00:15→24:17, long continuous segments
+(up to 2m18s), only window-granularity overlaps at boundaries. Output:
+`out_ja_acc2/[One Pace][2] Romance Dawn 02 [480p][En Sub][164BA736].ja.ass`.
+
+**Lesson for every future episode: verify the One Pace download has Japanese audio
+FIRST.** ffprobe language tags may be `und` (useless); the practical tell is the
+run's hit rate — dialogue-dense JA audio gives ~70%+ confident windows at ACC=2,
+an English dub gives <10%. `ACC = 2` is now the script default; the old garbage-
+segment and MIN_CONF worries evaporated with the correct audio.
+
+## Earlier on 2026-06-07 (first bug: audalign recognizer pollution — fixed)
+
+### Root cause of the Mac run's "420/420 confident, 0 segments" — SOLVED
+It was **not** the offset sign convention. `debug_probe.py` showed offsets increase
+with t (row 1 of the old convention table): `off0 = P`, so `delta = off0 - t` was
+already correct. The real bug, confirmed in audalign's source
+(`recognizers/fingerprint/recognize.py`, the `file_name not in recognizer.file_names`
+branch):
+
+- **`ad.recognize()` permanently ADDS the query clip to the recognizer's fingerprint
+  DB**, and if a query's *basename* is already in the DB it **silently reuses the
+  STORED fingerprints instead of the fresh file**.
+- The probe loop reused one filename (`clip.wav`), so every window after the first
+  was matched as *window 0's audio*: constant `off0`, `delta = off0 - t` falling by
+  exactly HOP=3.0 per step → no two consecutive deltas within DELTA_TOL → 0 segments.
+- The same per-clip accumulation was the **Mac memory balloon / kernel panics**.
+  One bug, both symptoms.
+
+**Fix in `opace_audio_align.py`:** after each `recognize()`, evict the clip's entries
+from `rec.fingerprinted_files` / `rec.file_names`. With that, RSS stayed flat through
+all 420 probes (peak 6.2GB at ACC=4 = the fingerprint DB itself, not a leak).
+
+### First good RD02 run (ACC=4, this PC)
+- 352/420 windows confident (84% — the suspicious 420/420 is gone)
+- **segments: 38 | JA lines placed: 123 | sign=+1** (meaningful detection now)
+- SEGMENT MAP validates: source times climb 00:30→24:20 with sane jumps at cuts.
+  Two blemishes: one 9s outlier (OP 13:57 ← src 20:52, out of order + overlapping
+  its neighbor; false match that slipped past MIN_CONF=10) and one possible scene
+  reorder (OP 16:45 ← src 20:18). 36/38 segments clean.
+- Output: `out/[One Pace][2] Romance Dawn 02 […].ja.ass`
+- Timing on the i3-12100F: fingerprint ~2.5min (first run only, now cached),
+  probe loop ~8min, flat ~6.1GB RSS.
+
+### Performance/RAM work (2026-06-07, after the fix)
+RAM and wall time are the user's main concern (PC must stay usable; multi-source
+episodes must not multiply RAM). Changes in `opace_audio_align.py`:
+- **Sequential per-source probing**: sources are fingerprinted+probed one at a time,
+  keeping per-window best-confidence match across passes — peak RAM stays at ONE
+  episode's DB regardless of `--source` count (RD03's Ep2+Ep19 won't double it).
+- **Fingerprint disk cache**: `work/<stem>.acc<N>.pickle`, auto save/load — re-runs
+  and tuning skip extraction AND fingerprinting.
+- **`--acc` flag** (now default 2): ACC=2 cuts the fingerprint DB ~5× and speeds
+  both phases; with correct Japanese audio it outperforms every EN-audio run
+  (settled by the A/B table in the state section above).
+- Persistent `./work` dir (wavs + fingerprint pickles survive crashes/re-runs).
+- Run under `nice -n 10` to keep the PC responsive while watching/working.
 
 ### Confirmed facts (don't re-derive)
 - audalign return shape: `recognize()` → `{"match_time": float, "match_info":
-  {srcfile: {"offset_seconds": [...], "confidence": [...], ...}}}` or `None`.
-- `one piece official 01.mkv` has a single `jpn` AAC track — the dual-audio trap
-  does not apply to this file.
-- Equal `--source`/`--jasub` counts pair by command-line order, so the stem mismatch
-  between `one piece official 01` and `ワンピース.S01E01...` is harmless.
-- Probe speed was ~3 windows/sec on an M1 at ACC=4 — the loop is NOT the bottleneck
-  it was feared to be; parallelization is nice-to-have, not required.
+  {srcfile: {"offset_seconds": [...], "confidence": [...], ...}}}` or `None`;
+  lists are sorted by descending confidence, offsets aligned to confidences.
+- Offset convention: `offset_seconds[0]` = position of the clip in the SOURCE
+  (`sample_difference = a_offset - t_offset` in audalign). `delta = off0 - t`.
+- `recognize()` mutates the recognizer (adds query clip to DB) — always evict after.
+- `onepieceofficial01.mkv` (renamed from `one piece official 01.mkv` on the Mac)
+  has a single `jpn` AAC track — the dual-audio trap does not apply.
+- Equal `--source`/`--jasub` counts pair by command-line order, so stem mismatches
+  between source files and JA sub names are harmless.
+- WSL2 here gets ~15GB of the 32GB host RAM; host is >90% used during runs, so
+  raising the WSL cap is NOT an option — reduce footprint instead (ACC, sequential
+  probing).
 
 ## Open unknowns / things to verify
-- **Offset convention** (above) — the current blocker, `debug_probe.py` answers it.
-- **Memory growth** in the probe loop (above) — observe on the PC, mitigate if real.
-- **Offset sign for JA mapping**: separate from the clustering-delta convention; the
-  script AUTO-DETECTS it (tries both, keeps whichever lands more JA lines in-range).
-  Check the printed `sign=`. (Run #1 printed `sign=+1` but with 0 segments it was a
-  meaningless 0-vs-0 tie.)
-- **Transition robustness**: One Pace adds crossfades/music swaps at cuts; those windows
-  won't fingerprint-match (usually non-dialogue → fine). If the map is fragmented even
-  AFTER the delta fix, the edit is too aggressive → fall back to approach #2 (ASR).
-- **MIN_CONF=10 looks too permissive** (420/420 hit). After the delta fix, if garbage
-  windows pollute segments, raise it and re-check.
+- **Eyeball test**: watch RD02 with `out_ja_acc2/….ja.ass` and spot-check timing
+  (this is next step 1 — see below).
+- **Small map gaps** (e.g. OP 01:51–02:15, 03:03–03:18): likely the title card /
+  transitions (non-dialogue → fine). Confirm while watching.
+- **Per-episode audio language**: every new One Pace download must be checked
+  (see lesson above) — wrong audio silently degrades to M&E-only matching.
+- **Wall time**: ~2.5min/episode warm, ~5min cold at ACC=2 — probably fine. If
+  batching ever hurts, parallelize the probe loop with `multiprocessing` fork
+  workers (Linux COW shares the fingerprint DB read-only across workers —
+  near-zero extra RAM, ~4× on the i3).
 
 ## Run
 ```bash
-python opace_audio_align.py \
-  --onepace "[One Pace][2] Romance Dawn 02 [480p][En CC][7CEC60A5].mp4" \
-  --source "one piece official 01.mkv" \
+# from the repo root, inside WSL (note: .venv, python3, renamed source file)
+nice -n 10 .venv/bin/python opace_audio_align.py \
+  --onepace "[One Pace][2] Romance Dawn 02 [480p][En Sub][164BA736].mp4" \
+  --source "onepieceofficial01.mkv" \
   --jasub "ワンピース.S01E01.WEBRip.Netflix.ja[cc].vtt" --outdir out
 # multi-source: pass --source A B  --jasub A.ja B.ja  (in matching order)
 # optional dual sub: --en-ass "romancedawn_02_en.ass"
-# (PowerShell: same command works with backtick ` instead of \ for line continuation)
+# optional: --acc N (default 2; 3-4 = more RAM/time, only if hit rate is low
+#                    despite confirmed-Japanese audio)
 ```
 The printed **SEGMENT MAP** is the validation gate: clean steadily-increasing source
-times with a few sane jumps = success. Tunables at top of file: `WIN/HOP`, `MIN_CONF`,
-`DELTA_TOL`, `MIN_WINDOWS`, `ACC`.
+times with a few sane jumps = success. Hit rate is the audio-language tell: ~70%
+confident = JA audio; <10% = wrong (dub) audio. Tunables at top of file: `WIN/HOP`,
+`MIN_CONF`, `DELTA_TOL`, `MIN_WINDOWS`; accuracy via `--acc`.
+
+To watch: `mpv "[One Pace][2] … [En Sub][164BA736].mp4" --sub-file="out_ja_acc2/… .ja.ass"`
+(or VLC: Subtitle → Add Subtitle File; from Windows the repo is at
+`\\wsl$\Ubuntu\home\mfi\projects\opace\`).
 
 ## Next steps (in order)
-1. `pip install audalign pysubs2`, ffmpeg on PATH, then `python debug_probe.py`
-   → read offsets against the convention table above.
-2. Patch the `delta` computation in `opace_audio_align.py`; also make its work dir
-   persistent (`./work`, skip extraction if wavs exist) like `debug_probe.py` does —
-   the Mac crashes cost us the temp wavs twice.
-3. Re-run RD02 (command above), validate the SEGMENT MAP, check memory while it runs.
-4. Quality check the output `.ass` (coverage %, spot timing against video).
-5. Scale to RD03 (multi-source: Ep 2 + 19) and RD04 (Ep 3), then batch arcs.
-6. If audio alignment underperforms on some episodes, wire in the ASR bridge (#2) as
+1. Eyeball RD02 with `out_ja_acc2/….ja.ass`; note any drift/garbage sections.
+2. Scale to RD03 (multi-source: Ep 2 + 19) and RD04 (Ep 3) — CHECK AUDIO LANGUAGE
+   of each One Pace download first — then batch arcs.
+3. If audio alignment underperforms on some episodes, wire in the ASR bridge (#2) as
    per-line fallback (kotoba-whisper on the RTX 3060).
 
 ## Env
-ffmpeg on PATH. `pip install audalign pysubs2`. (For ASR fallback: kotoba-whisper /
-faster-whisper + CUDA.) Repo contents needed: the two videos, the `.vtt`, both `.py`
-files, this file. `out/` and `work/` are regenerable.
+WSL2 Ubuntu on the PC. ffmpeg on PATH (`/usr/bin/ffmpeg`). Python via project venv:
+`.venv/` (python3.12, `pip install audalign pysubs2`). (For ASR fallback:
+kotoba-whisper / faster-whisper + CUDA.) Repo contents needed: the two videos, the
+`.vtt`, both `.py` files, this file. `out*/` is regenerable; `work/` holds reusable
+wavs + fingerprint caches (regenerable but saves ~5min/episode).
