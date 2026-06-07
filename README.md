@@ -60,6 +60,12 @@ mid-range GPU (transcription is cached — re-runs take seconds). The result lan
 to the video as `<video>.ja.ass`; mpv/VLC load it automatically. Episodes that already
 have a `.ja.ass` are skipped — `--force` redoes them.
 
+`--delete-video` removes each video (plus its cached audio) after successful
+processing to reclaim disk space. Mind that the subs are only useful *with* the
+video — use this for arcs you've already watched, or when the videos are copies of
+a library kept elsewhere. Re-processing with different subs stays possible either
+way (the transcript is cached separately and is all the matcher needs).
+
 ## Read the report
 
 Each episode prints a report; the arc run ends with a summary. The important part is

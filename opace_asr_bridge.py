@@ -1144,6 +1144,13 @@ def main():
     ap.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
     ap.add_argument("--force", action="store_true", help="redo episodes whose .ja.ass already exists")
     ap.add_argument(
+        "--delete-video",
+        action="store_true",
+        help="delete each video (and its cached wav) after SUCCESSFUL processing. "
+        "Careful: you still need the video to WATCH the subs -- use this for "
+        "already-watched arcs or when the video is a copy of a library elsewhere",
+    )
+    ap.add_argument(
         "--separate",
         action="store_true",
         help="isolate dialogue from music/SFX (BS-RoFormer) before transcribing; "
@@ -1166,6 +1173,12 @@ def main():
         v, s = find_episode(root)
         if v:
             return [(root, v, s)]
+        vids = [
+            f for f in os.listdir(root)
+            if os.path.isfile(os.path.join(root, f)) and f.lower().endswith(VIDEO_EXT)
+        ]
+        if vids:  # video present but dir doesn't qualify -> don't skip silently
+            print(f"WARNING: skipping {root}: {len(vids)} video(s) but no subs (or >1 video)")
         eps = []
         for sub in sorted(os.listdir(root)):
             d = os.path.join(root, sub)
@@ -1198,6 +1211,15 @@ def main():
             note = f"{placed}/{total} lines"
             if dgaps:
                 note += f"  *** {dgaps} unmatched DIALOGUE gap(s) -- check report! ***"
+            if a.delete_video and placed > 0:
+                freed = os.path.getsize(video)
+                os.remove(video)
+                vstem = os.path.splitext(os.path.basename(video))[0]
+                for w in os.listdir("work"):
+                    if w.startswith(vstem) and w.endswith(".wav"):
+                        freed += os.path.getsize(os.path.join("work", w))
+                        os.remove(os.path.join("work", w))
+                note += f"  (video deleted, {freed / 1e9:.1f}GB freed)"
             summary.append((name, note))
         except Exception as e:
             summary.append((name, f"FAILED: {e}"))
