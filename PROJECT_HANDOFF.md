@@ -175,6 +175,21 @@ trap from the "key facts" is now handled in code).
   - precision floor is ~±0.7s where whisper glues words across pauses and both
     neighbor predictions disagree sub-second; accepted as-is.
 
+### Vocal separation A/B (2026-06-07, late): NOT default
+`--separate` (BS-RoFormer via audio-separator) was A/B'd on RD03 against the
+trace-verified baseline: it upgrades several extrapolated lines to real
+evidence and halves hallucinations, but REGRESSED 3 user-verified items and
+costs ~9min/episode. Baseline stays primary. Use `--separate` as a second
+opinion on disputed placements (it independently confirmed excluding line 405)
+or on episodes with heavy hallucination zones. Needs `python3.12-dev` (apt)
+for the diffq build. RD02-04 outputs as of this state = user ground truth.
+
+### Status: RD02, RD03, RD04 DONE (user-verified). Next: Orange Town arc.
+Per-episode trace rounds shrank 7 -> 4 -> 1; the pipeline is mature. Routine:
+drop One Pace file + VTT(s) in inputs/rdXX/, run, read the gap report (songs
+are fine; dialogue-dense gaps mean missing/mis-mapped source), spot-check the
+debug TSV, excludes.txt for human-only calls.
+
 ## Historical: audio-alignment state (superseded by the ASR bridge above)
 
 ### The second bug: the RD02 file had ENGLISH dub audio ⚠️
