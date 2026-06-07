@@ -71,7 +71,7 @@ SPAN_MAX_X = 2.5  # cover span > this x the official cue duration = straddling j
 # interjections/grunts (うう… きゃーっ ははっ): only place with acoustic evidence --
 # interpolating them guesses, and a wrong grunt is worse than a missing one.
 # A kanji in the display text overrides: 撃て！/効かーん！ are words, not grunts.
-GRUNT = re.compile(r"^[ぁ-おかきはひふへほわやゆよゃゅょんっーう…]+$")
+GRUNT = re.compile(r"^[ぁ-おかきはひふへほわやゆよらゃゅょんっーう…]+$")
 LEXICAL = re.compile(r"[一-鿿]")
 
 # known song lyrics (normalized hiragana) -- gaps containing these are themes,
@@ -270,16 +270,21 @@ def process(a, onepace, jasubs, outdir):
     # MeCab readings (結構重いぜ -> けつかまえ...). So: build the raw char stream
     # with per-char times first, tag it ONCE with full context, then map each
     # token's reading back to the times of its surface chars.
+    # char times are END-anchored with a per-char duration cap: whisper word
+    # ENDS are reliable but starts smear into preceding silence/SFX (お前 heard
+    # as a 2.3s word whose お "starts" 2s early) -- uniform interpolation would
+    # launder that smear across all chars
     raw_chars, raw_t0, raw_t1 = [], [], []
     for ws, we, wraw in words:
         wtxt = re.sub(r"\s", "", unicodedata.normalize("NFKC", wraw))
         if not wtxt:
             continue
-        dur = max(we - ws, 1e-3)
+        n = len(wtxt)
+        cd = min(max(we - ws, 1e-3) / n, 0.5)
         for ci, ch in enumerate(wtxt):
             raw_chars.append(ch)
-            raw_t0.append(ws + dur * ci / len(wtxt))
-            raw_t1.append(ws + dur * (ci + 1) / len(wtxt))
+            raw_t0.append(we - (n - ci) * cd)
+            raw_t1.append(we - (n - ci - 1) * cd)
     raw_str = "".join(raw_chars)
     asr_chars, asr_t0, asr_t1 = [], [], []
     pos = 0
@@ -562,7 +567,7 @@ def process(a, onepace, jasubs, outdir):
     #    durations (>3x median, or zero-width) are trimmed, backing off one normal
     #    char duration per trimmed char.
     def refine_span(lo, hi):
-        if hi - lo + 1 < 4:
+        if hi - lo + 1 < 2:
             return asr_t0[lo], asr_t1[hi]
         durs = sorted(asr_t1[h] - asr_t0[h] for h in range(lo, hi + 1))
         # lower median: in a short span half the chars can be smear artifacts
@@ -652,12 +657,18 @@ def process(a, onepace, jasubs, outdir):
         # cover span that includes the line's first char heard the line start
         # directly -- neighbor-spacing noise must not drag it (俺の宝物に触るな
         # was heard at its true time and snapped 2s early). Lines whose start
-        # was NOT heard (はっ はい…) still benefit from prediction snaps.
+        # was NOT heard (はっ はい…) still benefit from prediction snaps, and
+        # the guard never shields multi-second deviations: those are the WRONG
+        # INSTANCE of a repeated line, not boundary noise (何だ？).
+        solid = False
         if li in first_hit and placement[li]:
             n_sp = placement[li][1] - placement[li][0] + 1
             d_sp = asr_t1[placement[li][1]] - asr_t0[placement[li][0]]
-            if n_sp >= 5 and d_sp / n_sp <= 0.45:
-                continue
+            lo_sp = placement[li][0]
+            # a tiny span counts as high-quality too if its onset is CLEAN
+            # (silence gap before it -- not glued to the previous word like 俺？)
+            lead_gap = asr_t0[lo_sp] - asr_t1[lo_sp - 1] if lo_sp > 0 else 9.9
+            solid = d_sp / n_sp <= 0.45 and (n_sp >= 5 or lead_gap >= 0.3)
         pv, nx = placed_lis[ix - 1], placed_lis[ix + 1]
         d_pv = lines[li][3] - lines[pv][3]  # vtt start deltas
         d_nx = lines[nx][3] - lines[li][3]
@@ -684,7 +695,7 @@ def process(a, onepace, jasubs, outdir):
                 continue
             pred = sided[0][1]
             dev = frozen[li][0] - pred
-            if 1.2 < abs(dev) <= 6.0:
+            if 1.2 < abs(dev) <= 6.0 and not (solid and abs(dev) <= 2.0):
                 s0, e0 = frozen[li]
                 times[li] = (pred, pred + (e0 - s0))
                 method[li] += "+snap1"
@@ -699,6 +710,8 @@ def process(a, onepace, jasubs, outdir):
         # region, and a deviation there is evidence smear, not a cut.
         short = lines[li][2] - lines[li][1] <= 3
         tol = 0.4 if short or abs(pred_pv - pred_nx) <= 0.3 else 1.2
+        if solid and abs(dev) <= 2.0:
+            continue  # trust the heard onset over sub-2s prediction pull
         if tol < abs(dev) <= 6.0:
             s0, e0 = frozen[li]
             times[li] = (pred, pred + (e0 - s0))
@@ -951,7 +964,22 @@ def process(a, onepace, jasubs, outdir):
             dropped_islands += 1
             continue
         final.append(ev)
-    emit = final
+    # a part event ADJACENT to an event whose text already contains its words is
+    # the same utterance claimed twice (cue 女１人におめえら…何人がかりだ vs
+    # another cue's お前ら part) -- absorb it, extending the keeper's end
+    absorbed = []
+    for i, ev in enumerate(final):
+        if (
+            ev[5] is None  # part event
+            and absorbed
+            and ev[0] - absorbed[-1][1] <= 0.5
+            and fuzz.partial_ratio(norm(ev[2]), norm(absorbed[-1][2])) >= 75
+        ):
+            k = absorbed[-1]
+            absorbed[-1] = (k[0], max(k[1], ev[1])) + k[2:]
+            continue
+        absorbed.append(ev)
+    emit = absorbed
     if dropped_islands:
         print(f"  dropped {dropped_islands} stray island placements")
     placed = len(emit)
