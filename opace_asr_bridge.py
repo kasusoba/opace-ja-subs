@@ -125,6 +125,10 @@ def hms(x):
     return f"{int(x // 60):02d}:{x % 60:05.2f}"
 
 
+def run(cmd):
+    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def jpn_audio_idx(src):
     """index of the first jpn-tagged audio stream, or None (single/untagged)"""
     out = subprocess.check_output(
@@ -162,6 +166,12 @@ def main():
     ap.add_argument("--outdir", default="out")
     ap.add_argument("--model", default="kotoba-tech/kotoba-whisper-v2.0-faster")
     ap.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
+    ap.add_argument(
+        "--separate",
+        action="store_true",
+        help="isolate dialogue from music/SFX (BS-RoFormer) before transcribing; "
+        "helps action scenes where whisper hallucinates or goes deaf",
+    )
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     os.makedirs("work", exist_ok=True)
@@ -180,7 +190,40 @@ def main():
     print("extracting audio...")
     stem = os.path.splitext(os.path.basename(a.onepace))[0]
     wav = os.path.join("work", stem + ".wav")  # per-episode name, NOT shared
-    to_wav(a.onepace, wav)
+    if a.separate:
+        # vocal isolation wants quality input (44.1k stereo); whisper wants 16k
+        # mono. extract hifi -> separate -> downmix the vocals stem.
+        wav = os.path.join("work", stem + ".vocals16k.wav")
+        if not (os.path.exists(wav) and os.path.getsize(wav) > 0):
+            hifi = os.path.join("work", stem + ".hifi.wav")
+            if not (os.path.exists(hifi) and os.path.getsize(hifi) > 0):
+                cmd = ["ffmpeg", "-y", "-i", a.onepace]
+                idx = jpn_audio_idx(a.onepace)
+                if idx is not None:
+                    print(f"  (multi-audio file: selecting jpn track, stream #{idx})")
+                    cmd += ["-map", f"0:{idx}"]
+                run(cmd + ["-ac", "2", "-ar", "44100", "-vn", hifi])
+            print("  isolating dialogue (BS-RoFormer)...", flush=True)
+            t0 = time.time()
+            from audio_separator.separator import Separator
+
+            sep = Separator(output_dir="work", log_level=40)  # ERROR only
+            sep.load_model("model_bs_roformer_ep_317_sdr_12.9755.ckpt")
+            outputs = sep.separate(hifi)
+            voc = next(
+                os.path.join("work", o) for o in outputs if "(Vocals)" in o
+            )
+            run(["ffmpeg", "-y", "-i", voc, "-ac", "1", "-ar", "16000", wav])
+            os.remove(voc)
+            for o in outputs:  # drop the instrumental stem too
+                p = os.path.join("work", o)
+                if os.path.exists(p):
+                    os.remove(p)
+            print(f"  done ({_fmt(time.time() - t0)})")
+        else:
+            print(f"  (reusing {os.path.basename(wav)})")
+    else:
+        to_wav(a.onepace, wav)
 
     # 2) transcribe with word timestamps -> per-char (char, start, end) stream.
     #    Words are cached to disk so matcher tweaks don't re-pay GPU minutes.
@@ -189,7 +232,8 @@ def main():
     import json
 
     asr_cache = os.path.join(
-        "work", f"asr_{stem}.{os.path.basename(a.model)}.json"
+        "work",
+        f"asr_{stem}.{os.path.basename(a.model)}{'.sep' if a.separate else ''}.json",
     )
     if os.path.exists(asr_cache):
         with open(asr_cache, encoding="utf-8") as f:
