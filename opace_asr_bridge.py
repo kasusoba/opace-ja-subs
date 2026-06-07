@@ -172,6 +172,15 @@ def process(a, onepace, jasubs, outdir):
         with open(exc_path, encoding="utf-8") as f:
             excludes = {l.strip() for l in f if l.strip()}
         print(f"  ({len(excludes)} excluded lines from {exc_path})")
+    # ...and the inverse: <episode dir>/pins.txt forces lines the human KNOWS
+    # are present (heavy-BGM scenes ASR can't hear); placed by official-sub
+    # spacing from the nearest placed neighbor.
+    pins = set()
+    pin_path = os.path.join(outdir, "pins.txt")
+    if os.path.exists(pin_path):
+        with open(pin_path, encoding="utf-8") as f:
+            pins = {l.strip() for l in f if l.strip()}
+        print(f"  ({len(pins)} pinned lines from {pin_path})")
 
     # 1) extract One Pace audio (reuses ./work cache)
     print("extracting audio...")
@@ -397,6 +406,7 @@ def process(a, onepace, jasubs, outdir):
     placement = [None] * len(lines)  # (asr_lo, asr_hi) char-index span
     part_events = []  # (start_s, end_s, part_text, parent_line)
     partial_done = set()  # lines resolved as "only part of the cue is in the cut"
+    first_hit = set()  # lines whose first char was acoustically matched
     coverages = []
     for li, (disp, p0, p1, vs, ve) in enumerate(lines):
         hp = [(p, off2asr[p]) for p in range(p0, p1) if off2asr[p] >= 0]
@@ -414,6 +424,8 @@ def process(a, onepace, jasubs, outdir):
             continue  # short interjections cover-match on noise (おい anywhere)
         if cover < MIN_COVER:
             continue
+        if any(p == p0 for p, _ in best):
+            first_hit.add(li)  # the line's FIRST char was heard (snap guard)
         span_dur = asr_t1[max(h for _, h in best)] - asr_t0[min(h for _, h in best)]
         if span_dur > max(SPAN_MAX_X * (ve - vs), ve - vs + 2.0):
             continue
@@ -636,6 +648,16 @@ def process(a, onepace, jasubs, outdir):
     for ix, li in enumerate(placed_lis):
         if ix == 0 or ix == len(placed_lis) - 1 or method[li] == "interp":
             continue
+        # HIGH-QUALITY acoustic evidence beats neighbor predictions: a dense
+        # cover span that includes the line's first char heard the line start
+        # directly -- neighbor-spacing noise must not drag it (俺の宝物に触るな
+        # was heard at its true time and snapped 2s early). Lines whose start
+        # was NOT heard (はっ はい…) still benefit from prediction snaps.
+        if li in first_hit and placement[li]:
+            n_sp = placement[li][1] - placement[li][0] + 1
+            d_sp = asr_t1[placement[li][1]] - asr_t0[placement[li][0]]
+            if n_sp >= 5 and d_sp / n_sp <= 0.45:
+                continue
         pv, nx = placed_lis[ix - 1], placed_lis[ix + 1]
         d_pv = lines[li][3] - lines[pv][3]  # vtt start deltas
         d_nx = lines[nx][3] - lines[li][3]
@@ -816,6 +838,27 @@ def process(a, onepace, jasubs, outdir):
             f"  one-sided extrapolation placed {one_sided} lines"
             + (f" (dropped {unsupported} unsupported)" if unsupported else "")
         )
+
+    # 5d5) pins: human-confirmed lines, placed by official spacing from the
+    #    nearest placed line (human evidence outranks every gate above)
+    pinned = 0
+    for li in range(len(lines)):
+        disp = lines[li][0]
+        if times[li] or (disp not in pins and disp.replace("\\N", " ") not in pins):
+            continue
+        anchor = min(
+            (i for i, t in enumerate(times) if t),
+            key=lambda i: abs(lines[i][3] - lines[li][3]),
+            default=None,
+        )
+        if anchor is None:
+            continue
+        s = times[anchor][0] + (lines[li][3] - lines[anchor][3])
+        times[li] = (s, s + (lines[li][4] - lines[li][3]))
+        method[li] = "pin"
+        pinned += 1
+    if pinned:
+        print(f"  pinned {pinned} human-confirmed lines")
 
 
     # 5e) emit: extend ends toward the official cue's display duration (speech ends
@@ -1018,8 +1061,8 @@ def process(a, onepace, jasubs, outdir):
                 )
                 if vtt_between >= 0.5 * (g1 - g0) or fuzz_best >= 55:
                     print(
-                        f"  {hms(g0)} -> {hms(g1)}  (garbled audio: content IS in "
-                        f"the subs but unmatchable -- noisy scene)"
+                        f"  {hms(g0)} -> {hms(g1)}  (unmatchable audio -- noisy "
+                        f"scene; if a line feels missing here, pins.txt it)"
                     )
                 else:
                     print(f"  {hms(g0)} -> {hms(g1)}  *** DIALOGUE, UNMATCHED -- missing a sub source? ***")

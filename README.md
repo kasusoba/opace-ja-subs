@@ -87,6 +87,9 @@ with `--force`.
 - A line that genuinely shouldn't exist (One Pace cut it, but context made it look
   present): put its exact text in `<episode folder>/excludes.txt`, one line per entry,
   and re-run with `--force`.
+- The opposite — a line you can hear but ASR couldn't (heavy music): put its exact
+  text in `<episode folder>/pins.txt`; it gets placed by official-sub spacing from
+  the nearest matched line. Your ears outrank every automated gate.
 - `--separate` re-transcribes from a dialogue-isolated track (BS-RoFormer; needs
   `pip install "audio-separator[gpu]"` and `python3-dev`). Slower, and *not* better
   across the board — use it as a second opinion on stubborn episodes.
