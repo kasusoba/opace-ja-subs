@@ -173,13 +173,22 @@ def process(a, onepace, jasubs, outdir):
             excludes = {l.strip() for l in f if l.strip()}
         print(f"  ({len(excludes)} excluded lines from {exc_path})")
     # ...and the inverse: <episode dir>/pins.txt forces lines the human KNOWS
-    # are present (heavy-BGM scenes ASR can't hear); placed by official-sub
-    # spacing from the nearest placed neighbor.
-    pins = set()
+    # are present (heavy-BGM scenes ASR can't hear). A bare line is placed by
+    # official-sub spacing from the nearest placed neighbor; a line prefixed
+    # with a timestamp ("11:39  槌！") is placed at that exact start -- the
+    # human's ears beat spacing-inference, which drifts across reorders/cuts.
+    pins = {}  # display text -> explicit start (s), or None for spacing-inferred
     pin_path = os.path.join(outdir, "pins.txt")
     if os.path.exists(pin_path):
         with open(pin_path, encoding="utf-8") as f:
-            pins = {l.strip() for l in f if l.strip()}
+            for l in f:
+                if not l.strip():
+                    continue
+                m = re.match(r"\s*(\d+):(\d\d(?:\.\d+)?)\s+(.+?)\s*$", l)
+                if m:
+                    pins[m.group(3)] = int(m.group(1)) * 60 + float(m.group(2))
+                else:
+                    pins[l.strip()] = None
         print(f"  ({len(pins)} pinned lines from {pin_path})")
 
     # 1) extract One Pace audio (reuses ./work cache)
@@ -858,16 +867,25 @@ def process(a, onepace, jasubs, outdir):
     pinned = 0
     for li in range(len(lines)):
         disp = lines[li][0]
-        if times[li] or (disp not in pins and disp.replace("\\N", " ") not in pins):
+        if times[li]:
             continue
-        anchor = min(
-            (i for i, t in enumerate(times) if t),
-            key=lambda i: abs(lines[i][3] - lines[li][3]),
-            default=None,
+        key = disp if disp in pins else (
+            disp.replace("\\N", " ") if disp.replace("\\N", " ") in pins else None
         )
-        if anchor is None:
+        if key is None:
             continue
-        s = times[anchor][0] + (lines[li][3] - lines[anchor][3])
+        explicit = pins[key]
+        if explicit is not None:
+            s = explicit  # human-timed: place exactly where they heard it
+        else:
+            anchor = min(
+                (i for i, t in enumerate(times) if t),
+                key=lambda i: abs(lines[i][3] - lines[li][3]),
+                default=None,
+            )
+            if anchor is None:
+                continue
+            s = times[anchor][0] + (lines[li][3] - lines[anchor][3])
         times[li] = (s, s + (lines[li][4] - lines[li][3]))
         method[li] = "pin"
         pinned += 1
