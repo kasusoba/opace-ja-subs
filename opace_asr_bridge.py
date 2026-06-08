@@ -763,14 +763,15 @@ def process(a, onepace, jasubs, outdir):
     #    own alibi against the later island check.
     pre_islands = 0
     placed_now = sorted((i for i, t in enumerate(times) if t), key=lambda i: times[i][0])
+    snap = {i: times[i] for i in placed_now}  # frozen: don't read mutating times[] below
     for ix, li in enumerate(placed_now):
         idx_near = any(
-            times[li2] and 0 < abs(li2 - li) <= 3
+            li2 in snap and 0 < abs(li2 - li) <= 3
             for li2 in range(max(li - 3, 0), min(li + 4, len(lines)))
         )
-        op_near = (ix > 0 and times[li][0] - times[placed_now[ix - 1]][1] <= 30) or (
+        op_near = (ix > 0 and snap[li][0] - snap[placed_now[ix - 1]][1] <= 30) or (
             ix + 1 < len(placed_now)
-            and times[placed_now[ix + 1]][0] - times[li][1] <= 30
+            and snap[placed_now[ix + 1]][0] - snap[li][1] <= 30
         )
         if not idx_near and not op_near:
             times[li] = None
