@@ -81,6 +81,7 @@
   .k.retime  { background: #4a3a17; color: var(--warn); }
   .k.wrong   { background: #3a2247; color: var(--pin); }
   .k.note    { background: #20303f; color: var(--accent); }
+  .k.trim    { background: #143b3a; color: #5fd0c0; }
 
   /* ---------- subtitle list ---------- */
   #listwrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -158,6 +159,14 @@
   .rslider .handle.b { background: var(--accent2); }
   .rslider .lab { position: absolute; top: -4px; font-size: 10px; transform: translateX(-50%);
     white-space: nowrap; color: var(--fg); }
+  /* trim: slide off head/tail characters of the official text (text never edited) */
+  .trimbox { position: relative; padding: 18px 4px 4px; overflow-x: auto; }
+  .trimtext { white-space: nowrap; font-size: 22px; line-height: 1.5; }
+  .trimtext .u.cut { color: var(--dim); opacity: .35; text-decoration: line-through; }
+  .thandle { position: absolute; top: 12px; width: 10px; height: 34px; margin-left: -5px;
+    background: var(--accent); border-radius: 3px; cursor: ew-resize; box-shadow: 0 1px 3px #000; }
+  .thandle.b { background: var(--accent2); }
+  .trimprev { margin-top: 10px; font-size: 14px; color: var(--good); word-break: break-word; }
   .help .hsec { margin: 12px 0; font-size: 13px; line-height: 1.5; }
   .help ul { margin: 4px 0; padding-left: 18px; }
   .help li { margin: 3px 0; }
@@ -290,6 +299,7 @@
         <li><span class="k exclude">✕ remove</span> — shown but shouldn't be (One Pace cut it).</li>
         <li><span class="k missing">⚑ here</span> — an unplaced line <i>is</i> spoken now (records the time).</li>
         <li><span class="k retime">⏱ retime</span> — right line, wrong time (e.g. One Pace trimmed it): drag the start/end <b>tips</b> on the slider (the video scrubs as you drag) or type a new <b>start</b>/<b>end</b> (blank = keep).</li>
+        <li><span class="k trim">✂ trim</span> — One Pace cut part of the line: slide the two tips to keep only the spoken <b>substring</b> of the official text (never typed/edited).</li>
         <li><span class="k wrong">≠ wrong</span> — wrong line shown; type what it <b>should be</b>.</li>
         <li><span class="k note">✎ note</span> — anything else, tied to the moment.</li>
         <li><span class="k note">▭ no sub here</span> (bar) — a whole stretch (from→to) has no subtitle.</li>
@@ -450,6 +460,7 @@ function buildList() {
     if (l.emitted) {
       acts.appendChild(mkAct("✕ remove", () => openFlag("exclude", l)));
       acts.appendChild(mkAct("⏱ retime", () => openFlag("retime", l)));
+      acts.appendChild(mkAct("✂ trim", () => openFlag("trim", l)));
       acts.appendChild(mkAct("≠ wrong", () => openFlag("wrong", l)));
     } else {
       acts.appendChild(mkAct("⚑ I hear it here", () => openFlag("missing", l)));
@@ -557,6 +568,9 @@ const KINDS = {
     sub: (l) => `#${l.n}  ${cleanText(l.text)}`,
     fields: [{ key: "shouldBe", type: "text", label: "Should be", ph: "the correct line (its # or text)" }],
     note: "(optional)" },
+  trim: { title: "Trim — One Pace cut part of this line",
+    sub: (l) => `#${l.n}  keep only the part that's still spoken (text never changes)`,
+    fields: [], note: "(optional)" },
   section: { title: "No subtitle across this stretch",
     sub: () => "which scene is missing its sub?",
     fields: [
@@ -606,6 +620,8 @@ function openFlag(kind, line) {
   const tfields = k.fields.filter((f) => f.type === "time");
   $("#modal").classList.toggle("top", tfields.length >= 2);
   if (tfields.length >= 2) buildRangeSlider(box, tfields[0].key, tfields[1].key);
+  pendingTrim = null;
+  if (kind === "trim") buildTrimWidget(box, line);
   $("#modal").classList.add("show");
   const first = k.fields[0] ? $("#mf_" + k.fields[0].key) : $("#mf_note");
   setTimeout(() => first.focus(), 30);
@@ -668,6 +684,68 @@ function buildRangeSlider(box, ka, kb) {
   }
   drag(hA, inA); drag(hB, inB);
 }
+
+// trim: keep a contiguous substring of the official text (One Pace cuts a
+// sentence continuously, so the kept part is a prefix/suffix-trimmed run). The
+// text is never typed — you slide two tips over the characters. \N is one unit.
+function textUnits(text) {
+  const u = [];
+  for (let i = 0; i < text.length; ) {
+    if (text[i] === "\\" && text[i + 1] === "N") { u.push({ v: "\\N", d: "⏎" }); i += 2; }
+    else { u.push({ v: text[i], d: text[i] }); i++; }
+  }
+  return u;
+}
+let pendingTrim = null;
+function buildTrimWidget(box, line) {
+  const us = textUnits(line.text);
+  let s = 0, e = us.length;
+  pendingTrim = { get start() { return s; }, get end() { return e; },
+    keep() { return us.slice(s, e).map((u) => u.v).join(""); } };
+  const wrap = el("div", "field");
+  wrap.appendChild(el("label", null, "Drag the tips to keep only the spoken part — the text itself never changes"));
+  const tb = el("div", "trimbox");
+  const tt = el("div", "trimtext");
+  const spans = us.map((u) => { const sp = el("span", "u", u.d); tt.appendChild(sp); return sp; });
+  const hA = el("div", "thandle a"), hB = el("div", "thandle b");
+  tb.append(tt, hA, hB);
+  wrap.appendChild(tb);
+  const prev = el("div", "trimprev");
+  wrap.appendChild(prev);
+  box.insertBefore(wrap, box.firstChild);
+
+  const boundary = (i) => {
+    if (i <= 0) return 0;
+    if (i >= spans.length) { const L = spans[spans.length - 1]; return L.offsetLeft + L.offsetWidth; }
+    return spans[i].offsetLeft;
+  };
+  function render() {
+    spans.forEach((sp, i) => sp.classList.toggle("cut", i < s || i >= e));
+    hA.style.left = boundary(s) + "px";
+    hB.style.left = boundary(e) + "px";
+    prev.textContent = "keep: " + (cleanText(us.slice(s, e).map((u) => u.v).join("")) || "—");
+  }
+  function nearest(x) {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i <= spans.length; i++) { const d = Math.abs(boundary(i) - x); if (d < bd) { bd = d; best = i; } }
+    return best;
+  }
+  function drag(h, isStart) {
+    h.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault(); h.setPointerCapture(ev.pointerId);
+      const move = (e2) => {
+        const r = tt.getBoundingClientRect();
+        const idx = nearest(e2.clientX - r.left + tt.parentElement.scrollLeft);
+        if (isStart) s = Math.min(idx, e); else e = Math.max(idx, s);
+        render();
+      };
+      const up = () => { h.removeEventListener("pointermove", move); h.removeEventListener("pointerup", up); };
+      h.addEventListener("pointermove", move); h.addEventListener("pointerup", up);
+    });
+  }
+  drag(hA, true); drag(hB, false);
+  setTimeout(render, 0); // after layout, so offsetLeft is valid
+}
 $("#mCancel").onclick = () => $("#modal").classList.remove("show");
 $("#modal").onclick = (e) => { if (e.target === $("#modal")) $("#mCancel").onclick(); };
 $("#mSave").onclick = () => {
@@ -681,6 +759,12 @@ $("#mSave").onclick = () => {
     ob[f.key] = f.type === "time" ? parseTime(raw) : raw;
   }
   const note = $("#mf_note").value.trim(); if (note) ob.note = note;
+  if (pending.kind === "trim") {
+    const keep = pendingTrim ? pendingTrim.keep() : "";
+    if (!keep) { alert("Keep at least one character."); return; }
+    if (keep === l.text) { alert("Nothing trimmed — slide a tip in, or Cancel."); return; }
+    ob.keep = keep; ob.trimStart = pendingTrim.start; ob.trimEnd = pendingTrim.end;
+  }
   const need = { missing: ["at"], section: ["from", "to"] }[pending.kind];
   if (need && need.some((kk) => ob[kk] == null)) { alert("Please fill: " + need.join(", ")); return; }
   if (pending.kind === "retime" && ob.start == null && ob.end == null) { alert("Set a new start and/or end"); return; }
@@ -711,6 +795,7 @@ function obDetail(ob) {
                    ob.end != null ? "end " + fmt(ob.end) : null].filter(Boolean).join(", ");
   if (ob.kind === "section") return "→ no sub " + fmt(ob.from) + "–" + fmt(ob.to);
   if (ob.kind === "wrong" && ob.shouldBe) return "→ should be: " + ob.shouldBe;
+  if (ob.kind === "trim") return "→ keep: " + cleanText(ob.keep || "");
   return "";
 }
 function renderObs() {
@@ -825,6 +910,7 @@ function openCtx(e, l) {
     items.push({ label: `⏱ Set end → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: l.start, method: l.method, end: t }, `retime #${l.n} end → ${fmt(t)}`) });
     items.push({ sep: 1 });
     items.push({ label: "✕ Remove (shouldn't exist)", fn: () => openFlag("exclude", l) });
+    items.push({ label: "✂ Trim text (One Pace cut part)…", fn: () => openFlag("trim", l) });
     items.push({ label: "≠ Wrong line…", fn: () => openFlag("wrong", l) });
     items.push({ label: "⏱ Retime… (dialog)", fn: () => openFlag("retime", l) });
   } else {

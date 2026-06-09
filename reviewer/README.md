@@ -29,6 +29,7 @@ free note) and exports them as a list for a human to judge into the right fix
    | ✕ remove | shown but shouldn't be (One Pace cut it) |
    | ⚑ I hear it here | an unplaced line *is* spoken at this moment |
    | ⏱ retime | right line, wrong time (e.g. One Pace trimmed it) — drag the start/end **tips** on the slider (video scrubs as you drag) or type a new start/end |
+   | ✂ trim | One Pace cut part of the line — slide two tips to keep a contiguous **substring** of the official text (no typing; timing via retime) |
    | ≠ wrong | wrong line shown — type what it should be |
    | ✎ note | anything else, tied to the moment |
    | ▭ no sub here | a whole stretch (from → to) has no subtitle |
@@ -94,6 +95,8 @@ persist in the browser.
     { "kind": "retime",  "n": 624, "text": "クソーッ…", "shownStart": 1898.3, "end": 1903.0 },
     { "kind": "wrong",   "n": 50,  "text": "あいー あいあいあい", "shownStart": 147.8,
       "shouldBe": "あっ 犬！ ヘヘッ (line 49)" },
+    { "kind": "trim", "n": 60, "text": "てめえ 今の事態\\N分かってんのか！",
+      "keep": "今の事態\\N分かってんのか！", "trimStart": 4, "trimEnd": 17 },
     { "kind": "section", "from": 1052.0, "to": 1098.0, "note": "Buggy crew fight — no subs at all" },
     { "kind": "exclude", "n": 438, "text": "よーし\\N曲芸ショーを見せてやれ" }
   ]
