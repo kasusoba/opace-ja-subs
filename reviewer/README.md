@@ -111,7 +111,7 @@ reference. `n`/`text` point at the official line; `shouldBe` names the correct o
 ## Baking notes into the sub
 
 Drop the exported `…​.review-notes.json` next to the video and run the pipeline
-(`python opace_asr_bridge.py "<episode>" --force`). It applies the notes as a
+(`python opace_asr_bridge.py "<episode>" --redo`). It applies the notes as a
 final edit layer — exclude/wrong remove a line, missing/wrong place one at the
 heard time, retime moves start/end, trim rewrites the text — baking them into the
 `.ja.ass` that mpv/VLC load. No re-matching or re-transcription happens.

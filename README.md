@@ -25,7 +25,7 @@ so ASR mistakes can't reach your screen.
  │ Export →  video.review-notes.json   (drop in the episode folder)│
  └─────────────────────────────────────────────────────────────────┘
                      │
-                     ▼  re-run the pipeline with --force
+                     ▼  re-run the pipeline with --redo
  ┌─ pipeline ──────────────────────────────────────────────────────┐
  │ BAKES your notes into video.ja.ass (no re-transcription)         │
  └──────────────────────────────────────────────────────────────────┘
@@ -37,7 +37,7 @@ so ASR mistakes can't reach your screen.
    watch) + `…debug.tsv` (trace) + `…review.json` (the reviewer's input).
 2. **Review** — open `reviewer/index.html`, drop the **video + `review.json`**,
    watch, and flag fixes. Each previews live. **Export** the notes into the folder.
-3. **Bake** — re-run with `--force`; your notes are applied into the `.ja.ass`.
+3. **Bake** — re-run with `--redo`; your notes are applied into the `.ja.ass`.
 4. Repeat 2–3 until happy. The only things that *aren't* a one-button bake are a
    **missing source file** (a `*** DIALOGUE, UNMATCHED ***` gap — add the right
    `.vtt` and re-run) and `section`/`note` observations (human judgement).
@@ -45,6 +45,33 @@ so ASR mistakes can't reach your screen.
 `excludes.txt` / `pins.txt` (below) still work — they're the hand-edited shortcut
 when you don't want to open the player. The reviewer covers everything they do and
 more, so they're optional now, not the main path.
+
+## Files in an episode folder
+
+These names/extensions are **reserved** — the tool recognizes them by pattern:
+
+| Name / pattern | Role | Written by |
+|---|---|---|
+| `*.mkv` `*.mp4` `*.m4v` `*.avi` `*.webm` | **input** — the One Pace video (exactly **one** per folder) | you |
+| `*.vtt` `*.srt` `*.ass` (but **not** `*.ja.ass`) | **input** — official JA sub(s); one per source episode, used in filename order | you |
+| `excludes.txt` | **override** — lines to delete, one exact text per line | you |
+| `pins.txt` | **override** — lines to force-place: `text`, or `MM:SS  text` for an exact time | you |
+| `*.review-notes.json` | **override** — fixes exported from the reviewer | the reviewer |
+| `<video>.ja.ass` | **output** — the timed subtitle you watch (mpv/VLC auto-load) | pipeline |
+| `<video>.ja.ass.debug.tsv` | **output** — per-line placement trace | pipeline |
+| `<video>.ja.ass.review.json` | **output** — raw track the reviewer loads | pipeline |
+| `work/asr_*.json`, `work/*.wav` | cache, regenerable (gitignored) | pipeline |
+
+Two things worth being precise about:
+
+- **Inputs *and* overrides are read every time an episode is processed** — there's
+  no separate "override mode." The matcher always reads the video + subs; the
+  emit step always applies `excludes.txt` / `pins.txt` / `*.review-notes.json` if
+  present. You add an override, then reprocess.
+- **`--redo` only decides *whether* an already-finished episode runs at all.** An
+  episode that already has a `<video>.ja.ass` is **skipped** by default (so re-running
+  `inputs/` doesn't redo everything); `--redo` forces it to reprocess — which is
+  exactly when your newly-added overrides get baked in. (`--force` is a kept alias.)
 
 ## Setup
 
@@ -95,7 +122,7 @@ python opace_asr_bridge.py inputs/rd03/            # one episode
 First run downloads the Whisper model (~3 GB). Each episode takes ~3–5 minutes on a
 mid-range GPU (transcription is cached — re-runs take seconds). The result lands next
 to the video as `<video>.ja.ass`; mpv/VLC load it automatically. Episodes that already
-have a `.ja.ass` are skipped — `--force` redoes them.
+have a `.ja.ass` are skipped — `--redo` redoes them.
 
 `--delete-video` removes each video (plus its cached audio) after successful
 processing to reclaim disk space. Mind that the subs are only useful *with* the
@@ -120,7 +147,7 @@ a **missing or wrong subtitle file**. One Pace episodes often pull content from 
 episodes the episode title doesn't mention, and streaming-service episode boundaries
 don't always match the TV episodes. The printed sample tells you (or a search engine)
 which episode the missing scene is from: add that sub file to the folder and re-run
-with `--force`.
+with `--redo`.
 
 ## Review while you watch
 
@@ -131,7 +158,7 @@ it renders the track, surfaces unplaced official lines that fall in the gap you'
 watching ("is this spoken here?"), and lets you flag *remove / missing / retime /
 wrong / trim / note* per line — each previewed live on the track. Export the notes,
 drop the `…​.review-notes.json` back in the episode folder, and re-run with
-`--force`: the tool **bakes** the edits into the `.ja.ass` (no re-transcription).
+`--redo`: the tool **bakes** the edits into the `.ja.ass` (no re-transcription).
 Notes that need judgement (a missing source file, a structural fix) are decided
 from the list. See [reviewer/README.md](reviewer/README.md).
 
@@ -142,7 +169,7 @@ from the list. See [reviewer/README.md](reviewer/README.md).
   = inferred from context (no acoustic evidence; the lines to be most skeptical of).
 - A line that genuinely shouldn't exist (One Pace cut it, but context made it look
   present): put its exact text in `<episode folder>/excludes.txt`, one line per entry,
-  and re-run with `--force`.
+  and re-run with `--redo`.
 - The opposite — a line you can hear but ASR couldn't (heavy music): put its exact
   text in `<episode folder>/pins.txt`; it gets placed by official-sub spacing from
   the nearest matched line. Your ears outrank every automated gate. Prefix the line

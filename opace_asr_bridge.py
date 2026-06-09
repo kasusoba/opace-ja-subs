@@ -1267,7 +1267,9 @@ def main():
     ap.add_argument("--outdir", help="explicit mode: output folder")
     ap.add_argument("--model", default="large-v3", help="faster-whisper model (default %(default)s)")
     ap.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
-    ap.add_argument("--force", action="store_true", help="redo episodes whose .ja.ass already exists")
+    ap.add_argument("--redo", "--force", dest="redo", action="store_true",
+                    help="reprocess episodes that already have a .ja.ass (re-applies "
+                         "excludes.txt/pins.txt/review-notes.json; transcription is cached)")
     ap.add_argument(
         "--delete-video",
         action="store_true",
@@ -1327,8 +1329,8 @@ def main():
     for d, video, subs in episodes:
         name = os.path.relpath(d)
         done = os.path.splitext(video)[0] + ".ja.ass"
-        if os.path.exists(done) and not a.force:
-            summary.append((name, "skipped (done; --force to redo)"))
+        if os.path.exists(done) and not a.redo:
+            summary.append((name, "skipped (done; --redo to reprocess)"))
             continue
         print(f"\n=== {name}: {os.path.basename(video)} + {len(subs)} sub(s) ===")
         try:
