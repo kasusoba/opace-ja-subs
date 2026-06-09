@@ -43,8 +43,9 @@ free note) and exports them as a list for a human to judge into the right fix
    pick *Shown #X is wrong — this is right*. Clicking a blue timestamp also
    **copies** it (and the "now" clock under the video is click-to-copy).
 
-   The observations strip under the video is a fixed height that scrolls (it never
-   shrinks the video); click its header to collapse it for a bigger picture.
+   The observations panel sits in the right column **under the subtitle list** —
+   drag the divider to make it bigger (it eats the list, never the video), or
+   click its header to collapse it. The video player never changes size.
 6. When the episode's done, **Export** (or **Copy JSON**) and send the
    `…​.review-notes.json` over.
 

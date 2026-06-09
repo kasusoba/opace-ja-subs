@@ -55,9 +55,12 @@
   #flagbar .curtext .meta { color: var(--dim); font-size: 11px; }
 
   /* observations */
+  #obsdivider { flex: 0 0 auto; height: 7px; cursor: row-resize; background: var(--line);
+    border-top: 1px solid var(--bg); border-bottom: 1px solid var(--bg); }
+  #obsdivider:hover { background: var(--accent); }
   #obs { background: var(--panel); border-top: 1px solid var(--line);
-    flex: 0 0 auto; height: 168px; padding: 6px 12px; display: flex; flex-direction: column; }
-  #obs.collapsed { height: auto; }
+    flex: 0 0 auto; height: 220px; padding: 6px 12px; display: flex; flex-direction: column; }
+  #obs.collapsed { height: auto !important; }
   #obs h3 { margin: 4px 0 6px; font-size: 12px; color: var(--dim); cursor: pointer;
     text-transform: uppercase; letter-spacing: .05em; flex: 0 0 auto; user-select: none; }
   #oblist { overflow: auto; flex: 1 1 auto; min-height: 0; }
@@ -84,7 +87,7 @@
   #listhead { padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line);
     display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
   #listhead label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-  #list { overflow: auto; flex: 1; }
+  #list { overflow: auto; flex: 1 1 auto; min-height: 0; }
   .row { display: grid; grid-template-columns: 40px 62px 1fr; gap: 6px;
     padding: 4px 8px; border-bottom: 1px solid #1f2734; align-items: start; cursor: default; }
   .row .n { color: var(--dim); font-size: 11px; text-align: right; }
@@ -197,10 +200,6 @@
       <button data-flag="note" data-cur="0" title="Free note at this moment (c)">✎ note@now</button>
       <button data-flag="section" data-cur="0" title="A whole stretch has no subtitle">▭ no sub here</button>
     </div>
-    <div id="obs">
-      <h3 id="obsHead"><span id="obsCaret">▾</span> Observations (<span id="obscount">0</span>) — autosaved · click to collapse</h3>
-      <div id="oblist"></div>
-    </div>
   </div>
 
   <div id="listwrap">
@@ -211,6 +210,11 @@
       <span id="legend" class="mono"></span>
     </div>
     <div id="list"></div>
+    <div id="obsdivider" title="drag to resize observations"></div>
+    <div id="obs">
+      <h3 id="obsHead"><span id="obsCaret">▾</span> Observations (<span id="obscount">0</span>) — autosaved · click to collapse</h3>
+      <div id="oblist"></div>
+    </div>
   </div>
 </div>
 
@@ -852,12 +856,41 @@ $("#sReset").onclick = () => { binds = { ...DEFAULT_BINDS }; seekInterval = 3;
   saveBinds(); localStorage.setItem("opace-review:interval", 3); $("#sInterval").value = 3; renderKeys(); };
 
 $("#follow").onchange = () => { lastCurN = -2; };
-$("#obsHead").onclick = () => {
-  const c = $("#obs").classList.toggle("collapsed");
+
+// observations live in the right column under the list — resizing them eats the
+// list, never the video. Drag the divider; the height persists.
+const obsHeight = () => parseInt(localStorage.getItem("opace-review:obsHeight")) || 220;
+(function () {
+  let startY, startH;
+  const move = (e) => {
+    const h = Math.min(Math.max(startH + (startY - e.clientY), 70), window.innerHeight - 200);
+    $("#obs").style.height = h + "px";
+  };
+  const up = () => {
+    document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up);
+    document.body.style.userSelect = "";
+    try { localStorage.setItem("opace-review:obsHeight", parseInt($("#obs").style.height)); } catch (e) {}
+  };
+  $("#obsdivider").onmousedown = (e) => {
+    if ($("#obs").classList.contains("collapsed")) return;
+    e.preventDefault(); startY = e.clientY; startH = $("#obs").offsetHeight;
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+  };
+  $("#obs").style.height = obsHeight() + "px";
+})();
+function setObsCollapsed(c) {
+  $("#obs").classList.toggle("collapsed", c);
   $("#obsCaret").textContent = c ? "▸" : "▾";
+  $("#obsdivider").style.display = c ? "none" : "";
+  $("#obs").style.height = c ? "" : obsHeight() + "px";
+}
+$("#obsHead").onclick = () => {
+  const c = !$("#obs").classList.contains("collapsed");
+  setObsCollapsed(c);
   try { localStorage.setItem("opace-review:obsCollapsed", c ? "1" : ""); } catch (e) {}
 };
-if (localStorage.getItem("opace-review:obsCollapsed")) { $("#obs").classList.add("collapsed"); $("#obsCaret").textContent = "▸"; }
+if (localStorage.getItem("opace-review:obsCollapsed")) setObsCollapsed(true);
 </script>
 </body>
 </html>
