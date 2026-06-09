@@ -11,8 +11,9 @@
     --good: #46c98b; --bad: #ff6b6b; --warn: #ffb84e; --pin: #b58bff;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
     font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
   button { font: inherit; color: var(--fg); background: var(--panel2);
     border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px;
     cursor: pointer; }
@@ -24,15 +25,16 @@
 
   /* ---------- top bar ---------- */
   #top { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-    background: var(--panel); border-bottom: 1px solid var(--line); }
+    background: var(--panel); border-bottom: 1px solid var(--line); flex: 0 0 auto; }
   #top .ep { font-weight: 600; color: var(--accent); }
   #top .spacer { flex: 1; }
   #top .stat { color: var(--dim); font-size: 12px; }
 
   /* ---------- layout ---------- */
   #app { display: none; grid-template-columns: 1fr 460px; grid-template-rows: 1fr;
-    height: calc(100vh - 45px); }
-  #left { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); }
+    flex: 1 1 auto; min-height: 0; }
+  #left { display: flex; flex-direction: column; min-width: 0; min-height: 0;
+    border-right: 1px solid var(--line); }
   #videowrap { position: relative; background: #000; flex: 1; min-height: 0;
     display: flex; align-items: center; justify-content: center; }
   video { max-width: 100%; max-height: 100%; }
@@ -73,7 +75,7 @@
   .k.note    { background: #20303f; color: var(--accent); }
 
   /* ---------- subtitle list ---------- */
-  #listwrap { display: flex; flex-direction: column; min-width: 0; }
+  #listwrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   #listhead { padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line);
     display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
   #listhead label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
