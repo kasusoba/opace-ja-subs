@@ -35,8 +35,16 @@ free note) and exports them as a list for a human to judge into the right fix
 
    Subtitles on the video are **selectable** — hover with Yomitan to look up words.
 6. When the episode's done, **Export** (or **Copy JSON**) and send the
-   `…​.review-notes.json` over. Observations autosave to the browser as you go,
-   so closing the tab doesn't lose them.
+   `…​.review-notes.json` over.
+
+### Your notes are safe across refreshes
+
+Every flag is **autosaved** to the browser (`localStorage`, keyed by episode) the
+moment you make it. After a refresh or crash, just re-drop the **same** video +
+`.review.json` — your observations reappear (the header shows "↩ restored N notes").
+For a hard backup or moving machines, **Export** periodically and use **Import** to
+merge a notes file back in (duplicates are skipped). Re-dropping local files is
+required because browsers can't silently re-open them — but the *notes* persist.
 
 ## Keys
 

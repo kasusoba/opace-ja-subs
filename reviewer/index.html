@@ -158,8 +158,10 @@
   <button id="btnSettings" title="Keyboard &amp; playback settings">⚙</button>
   <button id="btnHelp" title="What does everything do?">?</button>
   <button id="btnLoadAnother" title="Load a different episode">Load…</button>
+  <button id="btnImport" title="Restore observations from a notes file">Import</button>
   <button id="btnCopy" title="Copy observations JSON to clipboard">Copy JSON</button>
   <button id="btnExport" title="Download review-notes.json">Export ⬇</button>
+  <input type="file" id="fileNotes" accept=".json,application/json" hidden />
 </div>
 
 <div id="app">
@@ -360,7 +362,8 @@ function start() {
     `⚠ browser can't decode this file — remux: <code class="mono">ffmpeg -i in.mkv -c copy out.mp4</code>`;
   const em = emitted.length, tot = lines.length;
   const mism = videoFile.name !== review.video ? ` · ⚠ video name ≠ json` : "";
-  $("#stat").textContent = `${em}/${tot} shown · ${tot - em} unplaced${mism}`;
+  const restored = observations.length ? ` · ↩ restored ${observations.length} notes` : "";
+  $("#stat").textContent = `${em}/${tot} shown · ${tot - em} unplaced${mism}${restored}`;
   $("#legend").textContent = "pin interp rescue/part";
   buildList();
   loop();
@@ -640,6 +643,25 @@ $("#btnCopy").onclick = async () => {
     $("#btnCopy").textContent = "Copied ✓"; setTimeout(() => $("#btnCopy").textContent = "Copy JSON", 1200);
   } catch (e) { alert("clipboard blocked — use Export"); }
 };
+// import: restore/merge observations from a previously exported notes file
+const obSig = (o) => JSON.stringify([o.kind, o.n, o.at, o.start, o.end, o.from, o.to, o.shouldBe, o.note]);
+$("#btnImport").onclick = () => { if (!jsonReady) { alert("Load an episode first."); return; } $("#fileNotes").click(); };
+$("#fileNotes").onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      const incoming = d.observations || [];
+      const have = new Set(observations.map(obSig));
+      let added = 0;
+      for (const o of incoming) if (!have.has(obSig(o))) { o.id = nextId(); observations.push(o); have.add(obSig(o)); added++; }
+      saveObservations(); renderObs();
+      alert(`Imported ${added} new observation(s)` + (added < incoming.length ? ` (${incoming.length - added} already present)` : "") + ".");
+    } catch (err) { alert("Bad notes file: " + err.message); }
+  };
+  r.readAsText(f); e.target.value = "";
+};
 
 // ---- keyboard shortcuts (rebindable, asbplayer-style) ----------------------
 const ACTIONS = [
@@ -685,10 +707,13 @@ const MODKEYS = ["Shift", "Control", "Alt", "Meta"];
 function actionForKey(k) { for (const id in binds) if (binds[id] === k) return id; return null; }
 
 let capturing = null; // action id currently being rebound
+// capture phase, so we run BEFORE the native <video> controls — they
+// stopPropagation on arrows/space when the video is focused, which would
+// otherwise swallow our shortcuts and seek the video instead.
 document.addEventListener("keydown", (e) => {
   if (capturing) {                              // rebinding: next non-modifier key wins
     if (MODKEYS.includes(e.key)) return;
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();
     if (e.key !== "Escape") {
       const k = normKey(e);
       for (const id in binds) if (binds[id] === k) binds[id] = null; // keys stay unique
@@ -706,8 +731,8 @@ document.addEventListener("keydown", (e) => {
   if (/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
   if (!videoFile) return;
   const id = actionForKey(normKey(e));
-  if (id && HANDLERS[id]) { e.preventDefault(); HANDLERS[id](); }
-});
+  if (id && HANDLERS[id]) { e.preventDefault(); e.stopPropagation(); HANDLERS[id](); }
+}, true);
 
 // ---- settings panel --------------------------------------------------------
 function keyLabel(k) {
