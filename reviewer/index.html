@@ -136,7 +136,14 @@
   .help ul { margin: 4px 0; padding-left: 18px; }
   .help li { margin: 3px 0; }
   .help .k { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
-  #btnHelp { width: 26px; padding: 4px 0; text-align: center; }
+  #btnHelp, #btnSettings { width: 28px; padding: 4px 0; text-align: center; }
+  #keyList { max-height: 46vh; overflow: auto; }
+  .krow { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+  .krow:first-child { border-top: none; }
+  .krow .klabel { flex: 1; }
+  .kchip { min-width: 84px; text-align: center; font-family: ui-monospace, monospace; }
+  .kchip.capturing { border-color: var(--accent2); color: var(--accent2); }
+  .kclr { color: var(--bad); border: none; background: none; padding: 0 4px; }
   .hint { color: var(--dim); font-size: 12px; }
   kbd { background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px;
     border-radius: 4px; padding: 0 5px; font-size: 11px; font-family: ui-monospace, monospace; }
@@ -148,6 +155,7 @@
   <span class="ep" id="epname">opace reviewer</span>
   <span class="stat" id="stat"></span>
   <span class="spacer"></span>
+  <button id="btnSettings" title="Keyboard &amp; playback settings">⚙</button>
   <button id="btnHelp" title="What does everything do?">?</button>
   <button id="btnLoadAnother" title="Load a different episode">Load…</button>
   <button id="btnCopy" title="Copy observations JSON to clipboard">Copy JSON</button>
@@ -234,8 +242,29 @@
         <li><span class="k note">▭ no sub here</span> (bar) — a whole stretch (from→to) has no subtitle.</li>
       </ul>
     </div>
-    <div class="hsec"><b>Keys</b> — <kbd>space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> 2s (<kbd>shift</kbd> 10s) · <kbd>,</kbd>/<kbd>.</kbd> 0.1s · <kbd>x</kbd> remove current · <kbd>c</kbd> note now. Subtitles are selectable — hover with Yomitan to look up words.</div>
+    <div class="hsec"><b>Keys</b> (rebind/disable in <b>⚙</b>) — <kbd>space</kbd> play/pause ·
+      <kbd>←</kbd>/<kbd>→</kbd> previous/next subtitle · <kbd>a</kbd>/<kbd>d</kbd> seek
+      back/forward by the interval (default 3s) · <kbd>,</kbd>/<kbd>.</kbd> 0.1s nudge ·
+      <kbd>x</kbd> remove current · <kbd>c</kbd> note now. Subtitles are selectable —
+      hover with Yomitan to look up words.</div>
     <div class="actions"><button id="hClose">Got it</button></div>
+  </div>
+</div>
+
+<div id="settings" class="overlay">
+  <div class="card">
+    <h2>Settings</h2>
+    <div class="field">
+      <label>Seek interval (seconds) — used by seek backward / forward</label>
+      <input class="mono" id="sInterval" type="number" min="0.5" step="0.5" style="width: 120px" />
+    </div>
+    <div class="field"><label>Keyboard shortcuts — click a key to rebind, ✕ to unbind</label></div>
+    <div id="keyList"></div>
+    <div class="actions">
+      <button id="sReset">Reset defaults</button>
+      <span style="flex: 1"></span>
+      <button id="sClose">Done</button>
+    </div>
   </div>
 </div>
 
@@ -612,8 +641,62 @@ $("#btnCopy").onclick = async () => {
   } catch (e) { alert("clipboard blocked — use Export"); }
 };
 
-// ---- keyboard --------------------------------------------------------------
+// ---- keyboard shortcuts (rebindable, asbplayer-style) ----------------------
+const ACTIONS = [
+  { id: "playPause",     label: "Play / pause",              def: " " },
+  { id: "prevSub",       label: "Seek previous subtitle",    def: "ArrowLeft" },
+  { id: "nextSub",       label: "Seek next subtitle",        def: "ArrowRight" },
+  { id: "seekBack",      label: "Seek backward (interval)",  def: "a" },
+  { id: "seekForward",   label: "Seek forward (interval)",   def: "d" },
+  { id: "nudgeBack",     label: "Nudge back 0.1s",           def: "," },
+  { id: "nudgeForward",  label: "Nudge forward 0.1s",        def: "." },
+  { id: "removeCurrent", label: "Flag: remove current line", def: "x" },
+  { id: "noteNow",       label: "Flag: note at moment",      def: "c" },
+];
+const DEFAULT_BINDS = Object.fromEntries(ACTIONS.map((a) => [a.id, a.def]));
+function loadBinds() {
+  try { const s = localStorage.getItem("opace-review:keys");
+    return s ? { ...DEFAULT_BINDS, ...JSON.parse(s) } : { ...DEFAULT_BINDS };
+  } catch (e) { return { ...DEFAULT_BINDS }; }
+}
+let binds = loadBinds();
+let seekInterval = parseFloat(localStorage.getItem("opace-review:interval")) || 3;
+function saveBinds() { try { localStorage.setItem("opace-review:keys", JSON.stringify(binds)); } catch (e) {} }
+
+function prevSubStart() { const t = video.currentTime - 0.25; let r = null;
+  for (const l of emitted) { if (l.start < t) r = l.start; else break; } return r; }
+function nextSubStart() { const t = video.currentTime + 0.05;
+  for (const l of emitted) if (l.start > t) return l.start; return null; }
+function currentLineForNote() { const n = $("#flagbar").dataset.curn;
+  if (n !== "") return lines[+n]; const [prev] = bracket(video.currentTime); return prev || null; }
+const HANDLERS = {
+  playPause: () => (video.paused ? video.play() : video.pause()),
+  prevSub: () => { const s = prevSubStart(); if (s != null) video.currentTime = s; },
+  nextSub: () => { const s = nextSubStart(); if (s != null) video.currentTime = s; },
+  seekBack: () => (video.currentTime = Math.max(0, video.currentTime - seekInterval)),
+  seekForward: () => (video.currentTime += seekInterval),
+  nudgeBack: () => (video.currentTime -= 0.1),
+  nudgeForward: () => (video.currentTime += 0.1),
+  removeCurrent: () => { const n = $("#flagbar").dataset.curn; if (n !== "") openFlag("exclude", lines[+n]); },
+  noteNow: () => openFlag("note", currentLineForNote()),
+};
+const normKey = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
+const MODKEYS = ["Shift", "Control", "Alt", "Meta"];
+function actionForKey(k) { for (const id in binds) if (binds[id] === k) return id; return null; }
+
+let capturing = null; // action id currently being rebound
 document.addEventListener("keydown", (e) => {
+  if (capturing) {                              // rebinding: next non-modifier key wins
+    if (MODKEYS.includes(e.key)) return;
+    e.preventDefault();
+    if (e.key !== "Escape") {
+      const k = normKey(e);
+      for (const id in binds) if (binds[id] === k) binds[id] = null; // keys stay unique
+      binds[capturing] = k; saveBinds();
+    }
+    capturing = null; renderKeys(); return;
+  }
+  if ($("#settings").classList.contains("show")) { if (e.key === "Escape") $("#sClose").onclick(); return; }
   if ($("#help").classList.contains("show")) { if (e.key === "Escape") $("#hClose").onclick(); return; }
   if ($("#modal").classList.contains("show")) {
     if (e.key === "Escape") $("#mCancel").onclick();
@@ -622,22 +705,39 @@ document.addEventListener("keydown", (e) => {
   }
   if (/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
   if (!videoFile) return;
-  switch (e.key) {
-    case " ": e.preventDefault(); video.paused ? video.play() : video.pause(); break;
-    case "ArrowLeft":  video.currentTime -= e.shiftKey ? 10 : 2; break;
-    case "ArrowRight": video.currentTime += e.shiftKey ? 10 : 2; break;
-    case ",": video.currentTime -= 0.1; break;
-    case ".": video.currentTime += 0.1; break;
-    case "x": { const n = $("#flagbar").dataset.curn; if (n !== "") openFlag("exclude", lines[+n]); break; }
-    case "c": openFlag("note", currentLineForNote()); break;
-  }
+  const id = actionForKey(normKey(e));
+  if (id && HANDLERS[id]) { e.preventDefault(); HANDLERS[id](); }
 });
-function currentLineForNote() {
-  const n = $("#flagbar").dataset.curn;
-  if (n !== "") return lines[+n];
-  const [prev] = bracket(video.currentTime);
-  return prev || null;
+
+// ---- settings panel --------------------------------------------------------
+function keyLabel(k) {
+  if (k == null) return "unbound";
+  return ({ " ": "Space", ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓" }[k]) ||
+    (k.length === 1 ? k.toUpperCase() : k);
 }
+function renderKeys() {
+  const box = $("#keyList"); box.innerHTML = "";
+  for (const a of ACTIONS) {
+    const row = el("div", "krow");
+    row.appendChild(el("span", "klabel", a.label));
+    const chip = el("button", "kchip" + (capturing === a.id ? " capturing" : ""),
+      capturing === a.id ? "press a key…" : keyLabel(binds[a.id]));
+    chip.onclick = () => { capturing = a.id; renderKeys(); };
+    row.appendChild(chip);
+    const clr = el("button", "kclr", "✕"); clr.title = "unbind";
+    clr.onclick = () => { binds[a.id] = null; saveBinds(); renderKeys(); };
+    row.appendChild(clr);
+    box.appendChild(row);
+  }
+}
+$("#btnSettings").onclick = () => { capturing = null; $("#sInterval").value = seekInterval; renderKeys(); $("#settings").classList.add("show"); };
+$("#sClose").onclick = () => { capturing = null; $("#settings").classList.remove("show"); };
+$("#settings").onclick = (e) => { if (e.target === $("#settings")) $("#sClose").onclick(); };
+$("#sInterval").onchange = () => { const v = parseFloat($("#sInterval").value);
+  if (v > 0) { seekInterval = v; localStorage.setItem("opace-review:interval", v); } };
+$("#sReset").onclick = () => { binds = { ...DEFAULT_BINDS }; seekInterval = 3;
+  saveBinds(); localStorage.setItem("opace-review:interval", 3); $("#sInterval").value = 3; renderKeys(); };
+
 $("#follow").onchange = () => { lastCurN = -2; };
 </script>
 </body>

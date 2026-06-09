@@ -40,10 +40,15 @@ free note) and exports them as a list for a human to judge into the right fix
 
 ## Keys
 
-<kbd>space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> seek 2s
-(<kbd>shift</kbd> = 10s) · <kbd>,</kbd>/<kbd>.</kbd> nudge 0.1s ·
-<kbd>x</kbd> remove current line · <kbd>c</kbd> note at current moment.
-In the flag dialog: <kbd>esc</kbd> cancel, <kbd>ctrl/⌘ + enter</kbd> save.
+<kbd>space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> previous/next subtitle ·
+<kbd>a</kbd>/<kbd>d</kbd> seek back/forward by the interval (default 3s) ·
+<kbd>,</kbd>/<kbd>.</kbd> nudge 0.1s · <kbd>x</kbd> remove current line ·
+<kbd>c</kbd> note at current moment. In the flag dialog: <kbd>esc</kbd> cancel,
+<kbd>ctrl/⌘ + enter</kbd> save.
+
+All shortcuts are **rebindable** (and the seek interval is adjustable) in the
+**⚙** settings panel — click a key to rebind, ✕ to unbind it entirely. Settings
+persist in the browser.
 
 ## Export shape
 
