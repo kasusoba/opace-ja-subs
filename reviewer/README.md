@@ -39,8 +39,12 @@ free note) and exports them as a list for a human to judge into the right fix
    *Set start → now* / *Set end → now* (emitted lines) and *Place here → now*
    (unplaced). This is the fast path for a **late/early sub**: park the playhead
    where the line should start, right-click it, *Set start → now* — no dialog, no
-   copy/paste. Clicking a blue timestamp also **copies** it (and the "now" clock
-   under the video is click-to-copy).
+   copy/paste. When a wrong line is on screen, right-click the **correct** one and
+   pick *Shown #X is wrong — this is right*. Clicking a blue timestamp also
+   **copies** it (and the "now" clock under the video is click-to-copy).
+
+   The observations strip under the video is a fixed height that scrolls (it never
+   shrinks the video); click its header to collapse it for a bigger picture.
 6. When the episode's done, **Export** (or **Copy JSON**) and send the
    `…​.review-notes.json` over.
 

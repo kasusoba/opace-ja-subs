@@ -56,9 +56,12 @@
 
   /* observations */
   #obs { background: var(--panel); border-top: 1px solid var(--line);
-    max-height: 34%; overflow: auto; padding: 6px 12px; }
-  #obs h3 { margin: 4px 0 6px; font-size: 12px; color: var(--dim);
-    text-transform: uppercase; letter-spacing: .05em; }
+    flex: 0 0 auto; height: 168px; padding: 6px 12px; display: flex; flex-direction: column; }
+  #obs.collapsed { height: auto; }
+  #obs h3 { margin: 4px 0 6px; font-size: 12px; color: var(--dim); cursor: pointer;
+    text-transform: uppercase; letter-spacing: .05em; flex: 0 0 auto; user-select: none; }
+  #oblist { overflow: auto; flex: 1 1 auto; min-height: 0; }
+  #obs.collapsed #oblist { display: none; }
   .ob { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0;
     border-top: 1px solid var(--line); }
   .ob:first-of-type { border-top: none; }
@@ -195,7 +198,7 @@
       <button data-flag="section" data-cur="0" title="A whole stretch has no subtitle">▭ no sub here</button>
     </div>
     <div id="obs">
-      <h3>Observations (<span id="obscount">0</span>) — autosaved</h3>
+      <h3 id="obsHead"><span id="obsCaret">▾</span> Observations (<span id="obscount">0</span>) — autosaved · click to collapse</h3>
       <div id="oblist"></div>
     </div>
   </div>
@@ -703,7 +706,16 @@ function quickObs(ob, msg) { ob.id = nextId(); observations.push(ob); saveObserv
 function openCtx(e, l) {
   e.preventDefault();
   const t = video.currentTime;
+  const curn = $("#flagbar").dataset.curn;
+  const curShown = curn !== "" && curn != null ? lines[+curn] : null;
   const items = [{ hd: `#${l.n} · playhead ${fmt(t)}` }];
+  if (curShown && curShown.n !== l.n) {
+    items.push({ label: `≠ Shown #${curShown.n} is wrong — this (#${l.n}) is right`,
+      fn: () => quickObs({ kind: "wrong", n: curShown.n, text: curShown.text,
+        shownStart: curShown.emitted ? curShown.start : null, at: t,
+        shouldBe: `#${l.n} ${cleanText(l.text)}` }, `wrong: #${curShown.n} → #${l.n}`) });
+    items.push({ sep: 1 });
+  }
   if (l.emitted) {
     items.push({ label: `⏱ Set start → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: l.start, method: l.method, start: t }, `retime #${l.n} start → ${fmt(t)}`) });
     items.push({ label: `⏱ Set end → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: l.start, method: l.method, end: t }, `retime #${l.n} end → ${fmt(t)}`) });
@@ -840,6 +852,12 @@ $("#sReset").onclick = () => { binds = { ...DEFAULT_BINDS }; seekInterval = 3;
   saveBinds(); localStorage.setItem("opace-review:interval", 3); $("#sInterval").value = 3; renderKeys(); };
 
 $("#follow").onchange = () => { lastCurN = -2; };
+$("#obsHead").onclick = () => {
+  const c = $("#obs").classList.toggle("collapsed");
+  $("#obsCaret").textContent = c ? "▸" : "▾";
+  try { localStorage.setItem("opace-review:obsCollapsed", c ? "1" : ""); } catch (e) {}
+};
+if (localStorage.getItem("opace-review:obsCollapsed")) { $("#obs").classList.add("collapsed"); $("#obsCaret").textContent = "▸"; }
 </script>
 </body>
 </html>
