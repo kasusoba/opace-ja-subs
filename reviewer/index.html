@@ -162,7 +162,12 @@
   /* trim: slide off head/tail characters of the official text (text never edited) */
   .trimbox { position: relative; padding: 18px 4px 4px; overflow-x: auto; }
   .trimtext { white-space: nowrap; font-size: 22px; line-height: 1.5; }
+  .trimtext .u { cursor: pointer; border-radius: 3px; }
+  .trimtext .u:hover { background: rgba(78,161,255,.35); }
   .trimtext .u.cut { color: var(--dim); opacity: .35; text-decoration: line-through; }
+  .trimctrls { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; }
+  .trimctrls button { padding: 2px 9px; }
+  .trimctrls .hint { margin-left: 10px; }
   .thandle { position: absolute; top: 12px; width: 10px; height: 34px; margin-left: -5px;
     background: var(--accent); border-radius: 3px; cursor: ew-resize; box-shadow: 0 1px 3px #000; }
   .thandle.b { background: var(--accent2); }
@@ -299,7 +304,7 @@
         <li><span class="k exclude">✕ remove</span> — shown but shouldn't be (One Pace cut it).</li>
         <li><span class="k missing">⚑ here</span> — an unplaced line <i>is</i> spoken now (records the time).</li>
         <li><span class="k retime">⏱ retime</span> — right line, wrong time (e.g. One Pace trimmed it): drag the start/end <b>tips</b> on the slider (the video scrubs as you drag) or type a new <b>start</b>/<b>end</b> (blank = keep).</li>
-        <li><span class="k trim">✂ trim</span> — One Pace cut part of the line: slide the two tips to keep only the spoken <b>substring</b> of the official text (never typed/edited).</li>
+        <li><span class="k trim">✂ trim</span> — One Pace cut part of the line: <b>click a character</b> to set the nearest edge (or drag the tips / ◀▶) and keep only the spoken <b>substring</b> of the official text — never typed/edited.</li>
         <li><span class="k wrong">≠ wrong</span> — wrong line shown; type what it <b>should be</b>.</li>
         <li><span class="k note">✎ note</span> — anything else, tied to the moment.</li>
         <li><span class="k note">▭ no sub here</span> (bar) — a whole stretch (from→to) has no subtitle.</li>
@@ -703,15 +708,37 @@ function buildTrimWidget(box, line) {
   pendingTrim = { get start() { return s; }, get end() { return e; },
     keep() { return us.slice(s, e).map((u) => u.v).join(""); } };
   const wrap = el("div", "field");
-  wrap.appendChild(el("label", null, "Drag the tips to keep only the spoken part — the text itself never changes"));
+  wrap.appendChild(el("label", null, "Click a character to set the nearest edge — or drag the tips / use ◀▶. The text never changes."));
   const tb = el("div", "trimbox");
   const tt = el("div", "trimtext");
-  const spans = us.map((u) => { const sp = el("span", "u", u.d); tt.appendChild(sp); return sp; });
+  const spans = us.map((u, i) => {
+    const sp = el("span", "u", u.d);
+    sp.onclick = () => {                 // move whichever edge is nearer to this char
+      if (i < s) s = i;
+      else if (i >= e) e = i + 1;
+      else if (i - s <= e - 1 - i) s = i;
+      else e = i + 1;
+      render();
+    };
+    tt.appendChild(sp); return sp;
+  });
   const hA = el("div", "thandle a"), hB = el("div", "thandle b");
   tb.append(tt, hA, hB);
   wrap.appendChild(tb);
   const prev = el("div", "trimprev");
   wrap.appendChild(prev);
+  const ctrls = el("div", "trimctrls");
+  const step = (label, fn) => {
+    const b = el("button", null, label); b.type = "button";
+    b.onclick = (ev) => { ev.preventDefault(); fn(); render(); }; return b;
+  };
+  ctrls.append(
+    el("span", "hint", "start"),
+    step("◀", () => (s = Math.max(0, s - 1))), step("▶", () => (s = Math.min(e, s + 1))),
+    el("span", "hint", "end"),
+    step("◀", () => (e = Math.max(s, e - 1))), step("▶", () => (e = Math.min(us.length, e + 1))),
+  );
+  wrap.appendChild(ctrls);
   box.insertBefore(wrap, box.firstChild);
 
   const boundary = (i) => {
