@@ -1,0 +1,383 @@
+{
+  "episode": "[One Pace][23-25] Syrup Village 01 [1080p][A6DDEC2C]",
+  "video": "[One Pace][23-25] Syrup Village 01 [1080p][A6DDEC2C].mkv",
+  "tool": "opace-reviewer",
+  "count": 56,
+  "observations": [
+    {
+      "kind": "retime",
+      "n": 34,
+      "text": "おーし 肉食うぞ！",
+      "shownStart": 176.315,
+      "method": "interp1",
+      "start": 175.171337
+    },
+    {
+      "kind": "exclude",
+      "n": 35,
+      "text": "酒も忘れんな",
+      "shownStart": 178.526,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 8,
+      "text": "みんな 大変だーっ",
+      "at": 181.26098
+    },
+    {
+      "kind": "wrong",
+      "n": 37,
+      "text": "ハア 海賊が来たぞーっ\\N海賊が！ ハア…",
+      "shownStart": 186.367,
+      "at": 187.657688,
+      "shouldBe": "#9 海賊が攻めてきたぞ"
+    },
+    {
+      "kind": "missing",
+      "n": 10,
+      "text": "海賊だ 海賊だーっ",
+      "at": 188.808949
+    },
+    {
+      "kind": "wrong",
+      "n": 37,
+      "text": "ハア 海賊が来たぞーっ\\N海賊が！ ハア…",
+      "shownStart": 186.367,
+      "at": 189.289231,
+      "shouldBe": "#10 海賊だ 海賊だーっ"
+    },
+    {
+      "kind": "missing",
+      "n": 11,
+      "text": "海賊が攻めてきたぞーっ",
+      "at": 191.133326
+    },
+    {
+      "kind": "wrong",
+      "n": 37,
+      "text": "ハア 海賊が来たぞーっ\\N海賊が！ ハア…",
+      "shownStart": 186.367,
+      "at": 191.667907,
+      "shouldBe": "#11 海賊が攻めてきたぞーっ"
+    },
+    {
+      "kind": "missing",
+      "n": 12,
+      "text": "みんな 逃げろーっ！",
+      "at": 193.849506
+    },
+    {
+      "kind": "wrong",
+      "n": 38,
+      "text": "みんな 逃げろ\\N海賊が来たぞーっ",
+      "shownStart": 193.17,
+      "at": 194.557648,
+      "shouldBe": "#12 みんな 逃げろーっ！"
+    },
+    {
+      "kind": "missing",
+      "n": 13,
+      "text": "海賊だ みんな逃げろーっ",
+      "at": 196.739527
+    },
+    {
+      "kind": "wrong",
+      "n": 339,
+      "text": "うわあああ…",
+      "shownStart": 197.35,
+      "at": 198.701791,
+      "shouldBe": "#13 海賊だ みんな逃げろーっ"
+    },
+    {
+      "kind": "missing",
+      "n": 52,
+      "text": "ヘヘーン ここまでおいで\\Nダッハッハッハッハッ",
+      "at": 237.401529
+    },
+    {
+      "kind": "missing",
+      "n": 94,
+      "text": "はっ はいっ！",
+      "at": 372.052297
+    },
+    {
+      "kind": "missing",
+      "n": 105,
+      "text": "危ねえ！\\Nわっ わっ わっ…",
+      "at": 406.926724
+    },
+    {
+      "kind": "retime",
+      "n": 120,
+      "text": "ほら “バレた”って言った",
+      "shownStart": 455.23,
+      "method": "rescue",
+      "start": 455.2,
+      "end": 458.8
+    },
+    {
+      "kind": "missing",
+      "n": 126,
+      "text": "うわあああ 見抜かれたーっ！",
+      "at": 484.486034
+    },
+    {
+      "kind": "missing",
+      "n": 128,
+      "text": "ああっ おい お前ら…\\N逃げるなーっ",
+      "at": 490.211059
+    },
+    {
+      "kind": "retime",
+      "n": 194,
+      "text": "丘の上に…\\Nイッ！",
+      "shownStart": 732.39,
+      "method": "interp1",
+      "end": 735.099884
+    },
+    {
+      "kind": "retime",
+      "n": 195,
+      "text": "でかい屋敷があったな",
+      "shownStart": 734.35,
+      "method": "cover",
+      "start": 735.099884
+    },
+    {
+      "kind": "missing",
+      "n": 236,
+      "text": "本当にこの店か？",
+      "at": 767.963
+    },
+    {
+      "kind": "missing",
+      "n": 237,
+      "text": "ああ 海賊たちに連れ込まれて…\\N僕らで助けなきゃ",
+      "at": 769.548
+    },
+    {
+      "kind": "missing",
+      "n": 238,
+      "text": "でも本物の海賊だぞ\\N焼き肉にされてるかも…",
+      "at": 773.134
+    },
+    {
+      "kind": "missing",
+      "n": 239,
+      "text": "バカ！ 人を食うのは鬼ババだ",
+      "at": 776.304
+    },
+    {
+      "kind": "missing",
+      "n": 241,
+      "text": "この戦いはウソップ海賊団\\N結成以来の壮絶な戦いになる",
+      "at": 779.845
+    },
+    {
+      "kind": "missing",
+      "n": 242,
+      "text": "うん！",
+      "at": 785.016
+    },
+    {
+      "kind": "missing",
+      "n": 243,
+      "text": "ウソップ海賊団 参上！",
+      "at": 787.477
+    },
+    {
+      "kind": "missing",
+      "n": 244,
+      "text": "何あれ？",
+      "at": 790.679
+    },
+    {
+      "kind": "missing",
+      "n": 245,
+      "text": "キャプテンがいないぞ",
+      "at": 791.929
+    },
+    {
+      "kind": "missing",
+      "n": 246,
+      "text": "まさか…",
+      "at": 793.347
+    },
+    {
+      "kind": "missing",
+      "n": 247,
+      "text": "おっ おい 海賊たち！",
+      "at": 795.099
+    },
+    {
+      "kind": "missing",
+      "n": 248,
+      "text": "我らがキャプテン･ウソップを\\Nどこにやった？",
+      "at": 796.809
+    },
+    {
+      "kind": "missing",
+      "n": 249,
+      "text": "どこにやった？",
+      "at": 799.353
+    },
+    {
+      "kind": "missing",
+      "n": 250,
+      "text": "ああっ うまかった 肉！",
+      "at": 800.855
+    },
+    {
+      "kind": "missing",
+      "n": 251,
+      "text": "ええっ 肉って…",
+      "at": 803.941
+    },
+    {
+      "kind": "missing",
+      "n": 252,
+      "text": "まさかキャプテンを？",
+      "at": 805.401
+    },
+    {
+      "kind": "missing",
+      "n": 253,
+      "text": "ウッププププッ",
+      "at": 807.445
+    },
+    {
+      "kind": "missing",
+      "n": 254,
+      "text": "なっ… 何だ 何をした！",
+      "at": 809.03
+    },
+    {
+      "kind": "missing",
+      "n": 255,
+      "text": "お前らのキャプテンならなあ…",
+      "at": 811.782
+    },
+    {
+      "kind": "missing",
+      "n": 256,
+      "text": "食っちまった",
+      "at": 815.641
+    },
+    {
+      "kind": "missing",
+      "n": 257,
+      "text": "ギャアッ 鬼ババーッ！",
+      "at": 819.603
+    },
+    {
+      "kind": "missing",
+      "n": 258,
+      "text": "何で私を見てんのよ！",
+      "at": 821.48
+    },
+    {
+      "kind": "missing",
+      "n": 259,
+      "text": "あんたがバカなこと言うから！",
+      "at": 825.859
+    },
+    {
+      "kind": "exclude",
+      "n": 217,
+      "text": "お邪魔しま…",
+      "shownStart": 900.598,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 260,
+      "text": "ハアア… 冗談かあ",
+      "shownStart": 958.906,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 289,
+      "text": "まさか おめえ…",
+      "at": 1041.619508
+    },
+    {
+      "kind": "missing",
+      "n": 290,
+      "text": "ゴムゴムの…",
+      "at": 1043.080452
+    },
+    {
+      "kind": "exclude",
+      "n": 292,
+      "text": "腕が伸びた？",
+      "shownStart": 1045.22,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 293,
+      "text": "お邪魔…",
+      "shownStart": 1047.806,
+      "method": "interp1",
+      "start": 1047.361128
+    },
+    {
+      "kind": "retime",
+      "n": 294,
+      "text": "しまーす！\\Nうわーっ！",
+      "shownStart": 1051.518,
+      "method": "interp1",
+      "start": 1050.816925
+    },
+    {
+      "kind": "retime",
+      "n": 297,
+      "text": "あっ… あれ！",
+      "shownStart": 1061.89,
+      "method": "interp",
+      "start": 1063.160415
+    },
+    {
+      "kind": "exclude",
+      "n": 300,
+      "text": "どああ だああっ！",
+      "shownStart": 1066.053,
+      "method": "interp"
+    },
+    {
+      "kind": "trim",
+      "n": 357,
+      "text": "あ… あのね クラハドール\\Nこの人たちは…",
+      "shownStart": 1112.234,
+      "method": "interp1",
+      "keep": "この人たちは…",
+      "trimStart": 14,
+      "trimEnd": 21
+    },
+    {
+      "kind": "retime",
+      "n": 357,
+      "text": "あ… あのね クラハドール\\Nこの人たちは…",
+      "shownStart": 1112.234,
+      "method": "interp1",
+      "start": 1115.011931
+    },
+    {
+      "kind": "retime",
+      "n": 367,
+      "text": "君のうわさはよく聞いてるよ\\N村で評判だからね",
+      "shownStart": 1132.943,
+      "method": "cover+snap1",
+      "end": 1139.220993
+    },
+    {
+      "kind": "exclude",
+      "n": 471,
+      "text": "分かりました\\N迎え入れて 手当てを",
+      "shownStart": 1454.354,
+      "method": "interp1"
+    }
+  ]
+}

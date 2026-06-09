@@ -7,6 +7,11 @@
 # regenerable caches
 work/
 
+# regenerable per-episode trace artifacts (the .ja.ass deliverable, .vtt sources
+# and override files are tracked; these two are just rebuilt by a run)
+*.ja.ass.debug.tsv
+*.ja.ass.review.json
+
 # local tooling
 .venv/
 .claude/
