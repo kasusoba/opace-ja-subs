@@ -1090,73 +1090,71 @@ def process(a, onepace, jasubs, outdir):
               f"{retimed} retimed, {trimmed} trimmed, -{removed} removed")
         return final
 
-    final = apply_review_notes(final)
+    dst = os.path.join(outdir, stem + ".ja.ass")
 
+    # review.json = the RAW matcher track (the reviewer's canvas). Notes are an
+    # edit layer the reviewer previews live and the .ass bakes below; keeping
+    # review.json raw means re-opening the reviewer never double-applies them.
+    import json as _json
+    raw_times = {}
+    for s, e, txt, eli in final:
+        if eli is not None:
+            raw_times[eli] = (max(s, 0), e)
+    review = {"episode": stem, "video": os.path.basename(onepace), "lines": [], "parts": []}
+    for li, (disp, p0, p1, vs, ve) in enumerate(lines):
+        rt = raw_times.get(li)
+        review["lines"].append(
+            {
+                "n": li,
+                "text": disp,
+                "method": method[li] if rt else None,
+                "start": round(rt[0], 3) if rt else None,
+                "end": round(rt[1], 3) if rt else None,
+                "vtt": round(vs, 3),
+                "vdur": round(ve - vs, 3),  # official display duration, for live-preview
+                "emitted": rt is not None,
+            }
+        )
+    for s, e, txt, parent in sorted(part_events):
+        if parent not in raw_times:  # a part shows only when its cue didn't
+            review["parts"].append(
+                {"parent": parent, "text": txt, "start": round(s, 3), "end": round(e, 3)}
+            )
+    with open(dst + ".review.json", "w", encoding="utf-8") as f:
+        _json.dump(review, f, ensure_ascii=False)
+
+    # deliverable .ass + debug.tsv: bake the review notes (on a copy, so the raw
+    # review.json above stays untouched)
+    final = apply_review_notes([row[:] for row in final])
     final.sort(key=lambda x: x[0])
-    final_times, final_text = {}, {}
+    final_times = {}
     out = pysubs2.SSAFile()
     for s, e, txt, eli in final:
         if eli is not None:
             final_times[eli] = (max(s, 0), e)
-            final_text[eli] = txt
         out.append(pysubs2.SSAEvent(start=int(max(s, 0) * 1000), end=int(e * 1000), text=txt))
     out.sort()
     placed = len(final)
-    # resync placement bookkeeping to the post-notes track (TSV/JSON match the .ass)
-    for li in range(len(lines)):
+    for li in range(len(lines)):  # resync bookkeeping to the baked track for the TSV
         if li in final_times:
             if times[li] is None or method[li] is None:
                 method[li] = "note"
             times[li] = final_times[li]
         else:
             times[li] = None
-    dst = os.path.join(outdir, stem + ".ja.ass")
     out.save(dst)
 
-    # sidecar for tracing: how every official line was (or wasn't) placed
+    # sidecar for tracing: how every official line was (or wasn't) placed (baked)
     with open(dst + ".debug.tsv", "w", encoding="utf-8") as f:
         f.write("line\tmethod\top_start\top_end\tvtt_start\ttext\n")
         for li, (disp, p0, p1, vs, ve) in enumerate(lines):
             if times[li]:
-                fs, fe = final_times.get(li, times[li])  # emitted times, not raw
-                f.write(
-                    f"{li}\t{method[li]}\t{hms(fs)}\t{hms(fe)}\t{hms(vs)}\t{disp}\n"
-                )
+                fs, fe = final_times.get(li, times[li])
+                f.write(f"{li}\t{method[li]}\t{hms(fs)}\t{hms(fe)}\t{hms(vs)}\t{disp}\n")
             else:
                 f.write(f"{li}\t-\t-\t-\t{hms(vs)}\t{disp}\n")
         for s, e, txt, parent in sorted(part_events):
             f.write(f"{parent}\tpart\t{hms(s)}\t{hms(e)}\t-\t{txt}\n")
-
-    # machine-readable twin of the TSV for the review player (reviewer/index.html):
-    # every official line with its final on-screen times + emitted flag, so the
-    # player can render the track AND surface unplaced lines for auditing.
-    import json as _json
-    review = {
-        "episode": stem,
-        "video": os.path.basename(onepace),
-        "lines": [],
-        "parts": [],
-    }
-    for li, (disp, p0, p1, vs, ve) in enumerate(lines):
-        ft = final_times.get(li)
-        review["lines"].append(
-            {
-                "n": li,
-                "text": final_text.get(li, disp),
-                "method": method[li] if ft else None,
-                "start": round(ft[0], 3) if ft else None,
-                "end": round(ft[1], 3) if ft else None,
-                "vtt": round(vs, 3),
-                "emitted": ft is not None,
-            }
-        )
-    for s, e, txt, parent in sorted(part_events):
-        if parent not in final_times:  # a part shows only when its cue didn't
-            review["parts"].append(
-                {"parent": parent, "text": txt, "start": round(s, 3), "end": round(e, 3)}
-            )
-    with open(dst + ".review.json", "w", encoding="utf-8") as f:
-        _json.dump(review, f, ensure_ascii=False)
 
     # 6) report
     ev_sorted = sorted((ev.start / 1000.0, ev.end / 1000.0) for ev in out)
