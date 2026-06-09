@@ -43,6 +43,17 @@ free note) and exports them as a list for a human to judge into the right fix
    pick *Shown #X is wrong — this is right*. Clicking a blue timestamp also
    **copies** it (and the "now" clock under the video is click-to-copy).
 
+   **Multi-select** rows with **Ctrl/⌘-click** (toggle) or **Shift-click** (range)
+   for bulk actions, via the bar that appears above the list:
+   - **▦ Place block @ playhead** — for a stretch whose official lines exist but are
+     all unplaced (a BGM-buried scene): select them, park the playhead where the
+     first is spoken, and they're laid out from there by official spacing. Use this
+     instead of *no sub here* when the lines *do* exist and you just need them placed.
+   - **✕ Remove all** — flag every selected line for removal.
+   - To fix a wrong-instance region: select the wrong lines, then **right-click the
+     correct line** → *N selected wrong — this is right*.
+   <kbd>Esc</kbd> clears the selection.
+
    The observations panel sits in the right column **under the subtitle list** —
    drag the divider to make it bigger (it eats the list, never the video), or
    click its header to collapse it. The video player never changes size.

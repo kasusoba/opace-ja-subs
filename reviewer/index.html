@@ -105,6 +105,12 @@
   .row.ingap.unplaced .txt { color: #c3b27a; }
   .row.current { background: #233247; box-shadow: inset 3px 0 0 var(--accent); }
   .row.flagged { box-shadow: inset 3px 0 0 var(--accent2); }
+  .row.selected { background: #29331f; box-shadow: inset 3px 0 0 var(--good); }
+  .row.selected.current { background: #314227; }
+  #selbar { display: none; align-items: center; gap: 8px; padding: 6px 10px;
+    background: #1b2740; border-bottom: 1px solid var(--line); font-size: 12px; }
+  #selbar .hint { color: var(--dim); }
+  #selbar button { padding: 2px 8px; }
   .row .m-pin    { color: var(--pin); }
   .row .m-interp { color: var(--warn); }
   .row .m-rescue, .row .m-part { color: var(--accent2); }
@@ -209,6 +215,14 @@
       <span class="spacer" style="flex:1"></span>
       <span id="legend" class="mono"></span>
     </div>
+    <div id="selbar">
+      <span><b id="selcount">0</b> selected</span>
+      <button id="selBlock" title="Place the selected unplaced lines as a block starting at the playhead, following official spacing">▦ Place block @ playhead</button>
+      <button id="selRemove" title="Flag every selected line as remove">✕ Remove all</button>
+      <span class="hint">↳ or right-click the correct line to mark these wrong</span>
+      <span style="flex: 1"></span>
+      <button id="selClear">Clear</button>
+    </div>
     <div id="list"></div>
     <div id="obsdivider" title="drag to resize observations"></div>
     <div id="obs">
@@ -254,6 +268,7 @@
         <li><span style="color:var(--dim)">grey, no time</span> = unplaced (not shown). When one falls in the gap you're watching it turns <span style="color:#c3b27a">amber (in&nbsp;gap)</span> — a "is this spoken here?" candidate.</li>
         <li>method badge: <span class="m-pin mono">pin</span> human-placed · <span class="m-interp mono">interp</span> inferred (be skeptical) · <span class="m-rescue mono">rescue/part</span> fuzzy · <span class="mono">cover</span> heard.</li>
         <li>click the <b>#number</b> (or double-click a row) to open its flag buttons.</li>
+        <li><b>Ctrl/⌘-click</b> or <b>Shift-click</b> rows to multi-select, then: <b>Place block @ playhead</b> (lay unplaced lines out from the playhead by official spacing), <b>Remove all</b>, or right-click the <i>correct</i> line to mark the selected ones wrong. <kbd>Esc</kbd> clears.</li>
       </ul>
     </div>
     <div class="hsec"><b>Flag buttons</b> — per row, or the bar under the video for the current line. Every flag is just a captured <i>observation</i>; nothing is auto-fixed.
@@ -434,11 +449,16 @@ function buildList() {
     main.onclick = () => { if (l.emitted) seek(l.start); else toggleActs(row); };
     row.ondblclick = () => toggleActs(row);
     row.oncontextmenu = (e) => openCtx(e, l);
+    // capture phase so a modifier-click selects instead of seeking/expanding
+    row.addEventListener("click", (e) => {
+      if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); e.stopPropagation(); selectClick(l.n, e); }
+    }, true);
 
     list.appendChild(row);
     rowEls[l.n] = row;
   }
   renderObs();
+  renderSelection();
 }
 function mkAct(label, fn) { const b = el("button", null, label); b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; }
 function toggleActs(row) { row.classList.toggle("open"); }
@@ -713,6 +733,10 @@ function openCtx(e, l) {
   const curn = $("#flagbar").dataset.curn;
   const curShown = curn !== "" && curn != null ? lines[+curn] : null;
   const items = [{ hd: `#${l.n} · playhead ${fmt(t)}` }];
+  if (selected.size && !selected.has(l.n)) {
+    items.push({ label: `≠ ${selected.size} selected wrong — this (#${l.n}) is right`, fn: () => bulkWrong(l) });
+    items.push({ sep: 1 });
+  }
   if (curShown && curShown.n !== l.n) {
     items.push({ label: `≠ Shown #${curShown.n} is wrong — this (#${l.n}) is right`,
       fn: () => quickObs({ kind: "wrong", n: curShown.n, text: curShown.text,
@@ -752,6 +776,45 @@ function hideCtx() { $("#ctx").classList.remove("show"); }
 document.addEventListener("click", hideCtx);
 document.addEventListener("scroll", hideCtx, true);
 window.addEventListener("blur", hideCtx);
+
+// ---- multi-select (Ctrl/⌘-click toggle, Shift-click range) ------------------
+let selected = new Set(), lastSel = null;
+function selectClick(n, e) {
+  if (e.shiftKey && lastSel != null) {
+    const a = Math.min(lastSel, n), b = Math.max(lastSel, n);
+    for (let i = a; i <= b; i++) if (rowEls[i]) selected.add(i);
+  } else {
+    selected.has(n) ? selected.delete(n) : selected.add(n);
+  }
+  lastSel = n; renderSelection();
+}
+function renderSelection() {
+  rowEls.forEach((r, i) => { if (r) r.classList.toggle("selected", selected.has(i)); });
+  $("#selcount").textContent = selected.size;
+  $("#selbar").style.display = selected.size ? "flex" : "none";
+}
+function clearSelection() { selected.clear(); lastSel = null; renderSelection(); }
+$("#selClear").onclick = clearSelection;
+$("#selRemove").onclick = () => {
+  let n = 0;
+  for (const i of selected) { const l = lines[i]; if (l.emitted) {
+    observations.push({ id: nextId(), kind: "exclude", n: l.n, text: l.text, shownStart: l.start, method: l.method }); n++; } }
+  saveObservations(); renderObs(); toast(`flagged ${n} for removal`); clearSelection();
+};
+$("#selBlock").onclick = () => {
+  const sel = [...selected].map((i) => lines[i]).filter((l) => !l.emitted).sort((a, b) => a.vtt - b.vtt);
+  if (!sel.length) { toast("select unplaced lines first"); return; }
+  const t0 = video.currentTime, base = sel[0].vtt;
+  for (const l of sel) observations.push({ id: nextId(), kind: "missing", n: l.n, text: l.text, at: +(t0 + (l.vtt - base)).toFixed(3) });
+  saveObservations(); renderObs(); toast(`block-placed ${sel.length} lines from ${fmt(t0)}`); clearSelection();
+};
+function bulkWrong(correct) {
+  for (const i of selected) { const w = lines[i];
+    observations.push({ id: nextId(), kind: "wrong", n: w.n, text: w.text,
+      shownStart: w.emitted ? w.start : null, shouldBe: `#${correct.n} ${cleanText(correct.text)}` }); }
+  toast(`${selected.size} wrong → #${correct.n}`);
+  saveObservations(); renderObs(); clearSelection();
+}
 
 // ---- keyboard shortcuts (rebindable, asbplayer-style) ----------------------
 const ACTIONS = [
@@ -812,6 +875,7 @@ document.addEventListener("keydown", (e) => {
     capturing = null; renderKeys(); return;
   }
   if ($("#ctx").classList.contains("show") && e.key === "Escape") { hideCtx(); e.preventDefault(); return; }
+  if (selected.size && e.key === "Escape" && !$("#modal").classList.contains("show")) { clearSelection(); e.preventDefault(); return; }
   if ($("#settings").classList.contains("show")) { if (e.key === "Escape") $("#sClose").onclick(); return; }
   if ($("#help").classList.contains("show")) { if (e.key === "Escape") $("#hClose").onclick(); return; }
   if ($("#modal").classList.contains("show")) {
