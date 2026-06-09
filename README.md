@@ -9,6 +9,43 @@ official line is actually spoken, and writes a `.ja.ass` that players auto-load.
 The official text is never altered: speech recognition is only used as a *timing key*,
 so ASR mistakes can't reach your screen.
 
+## The loop, end to end
+
+```
+ ┌─ you ─────────────┐     ┌─ pipeline (opace_asr_bridge.py) ──────────────┐
+ │ video.mkv         │ ──► │ transcribe (cached) → match official lines →  │
+ │ official .vtt(s)  │     │ write  video.ja.ass  + .debug.tsv + .review.json│
+ └───────────────────┘     └───────────────────────────────────────────────┘
+                                              │
+                     ┌────────────────────────┘ review.json (raw track)
+                     ▼
+ ┌─ reviewer/index.html ──────────────────────────────────────────┐
+ │ drop video + review.json → watch, flag fixes (previews live):   │
+ │   remove · missing · retime · trim · wrong · section · note     │
+ │ Export →  video.review-notes.json   (drop in the episode folder)│
+ └─────────────────────────────────────────────────────────────────┘
+                     │
+                     ▼  re-run the pipeline with --force
+ ┌─ pipeline ──────────────────────────────────────────────────────┐
+ │ BAKES your notes into video.ja.ass (no re-transcription)         │
+ └──────────────────────────────────────────────────────────────────┘
+                     │
+                     ▼  watch the finished video.ja.ass in mpv / VLC
+```
+
+1. **Generate** — `python opace_asr_bridge.py "<episode>"` → `…ja.ass` (what you
+   watch) + `…debug.tsv` (trace) + `…review.json` (the reviewer's input).
+2. **Review** — open `reviewer/index.html`, drop the **video + `review.json`**,
+   watch, and flag fixes. Each previews live. **Export** the notes into the folder.
+3. **Bake** — re-run with `--force`; your notes are applied into the `.ja.ass`.
+4. Repeat 2–3 until happy. The only things that *aren't* a one-button bake are a
+   **missing source file** (a `*** DIALOGUE, UNMATCHED ***` gap — add the right
+   `.vtt` and re-run) and `section`/`note` observations (human judgement).
+
+`excludes.txt` / `pins.txt` (below) still work — they're the hand-edited shortcut
+when you don't want to open the player. The reviewer covers everything they do and
+more, so they're optional now, not the main path.
+
 ## Setup
 
 Requirements: Python 3.10+, `ffmpeg` on PATH, and ideally an NVIDIA GPU
