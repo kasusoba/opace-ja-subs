@@ -1001,13 +1001,11 @@ def process(a, onepace, jasubs, outdir):
     emit = absorbed
     if dropped_islands:
         print(f"  dropped {dropped_islands} stray island placements")
-    placed = len(emit)
-    out = pysubs2.SSAFile()
-    final_times = {}  # line_idx -> emitted (start, end), for the debug TSV
-    prev_end = None
     emit = [ev for ev in emit if ev[2].replace("\\N", " ") not in excludes
             and ev[2] not in excludes]
-    placed = len(emit)
+    # heuristic post-processing -> a flat list of [start, end, text, line_idx]
+    final = []
+    prev_end = None
     for oi, (s, e, txt, vtt_dur, can_ext, eli) in enumerate(emit):
         # whisper clips onsets after silence (cut boundaries): when a SHORT span
         # (single word -- longer spans have solid onsets) is compressed well below
@@ -1027,12 +1025,91 @@ def process(a, onepace, jasubs, outdir):
             if e > nxt - 0.03 and nxt - 0.03 > s + MIN_DUR / 2:
                 e = nxt - 0.03
         prev_end = e
+        final.append([max(s, 0), e, txt, eli])
+
+    # human review notes (reviewer/index.html exports <video>.ja.ass.review-notes.json)
+    # are the final authority: an edit layer baked over the generated track.
+    def apply_review_notes(final):
+        import re as _re, json as _json
+        # NB: glob is unusable here -- the episode dir name contains [brackets],
+        # which glob reads as character classes. List + filter instead.
+        paths = sorted(os.path.join(outdir, f) for f in os.listdir(outdir)
+                       if f.endswith(".review-notes.json"))
+        obs = []
+        for p in paths:
+            try:
+                with open(p, encoding="utf-8") as f:
+                    obs.extend(_json.load(f).get("observations", []))
+            except Exception as ex:
+                print(f"  (skipped {os.path.basename(p)}: {ex})")
+        if not obs:
+            return final
+        dur_of = lambda n: min(max(lines[n][4] - lines[n][3], MIN_DUR), 7.0)
+        by_n = {}
+        for ev in final:
+            if ev[3] is not None:
+                by_n.setdefault(ev[3], []).append(ev)
+        drop, adds = set(), []  # adds: (n, start, end) to place after removals
+        retimed = trimmed = removed = 0
+        for ob in obs:
+            n, k = ob.get("n"), ob.get("kind")
+            if k == "exclude":
+                for ev in by_n.get(n, []):
+                    drop.add(id(ev)); removed += 1
+            elif k == "wrong":                      # drop the wrong line, place shouldBe
+                for ev in by_n.get(n, []):
+                    drop.add(id(ev)); removed += 1
+                m = _re.match(r"#(\d+)", ob.get("shouldBe") or "")
+                if m and ob.get("at") is not None:
+                    rn = int(m.group(1)); adds.append((rn, ob["at"], ob["at"] + dur_of(rn)))
+            elif k == "trim" and ob.get("keep"):
+                for ev in by_n.get(n, []):
+                    ev[2] = ob["keep"]; trimmed += 1
+            elif k == "retime":
+                evs = by_n.get(n)
+                if evs:
+                    if ob.get("start") is not None: evs[0][0] = ob["start"]
+                    if ob.get("end") is not None: evs[0][1] = ob["end"]
+                    retimed += 1
+                elif ob.get("start") is not None and n is not None:
+                    adds.append((n, ob["start"], ob.get("end") or ob["start"] + dur_of(n)))
+            elif k == "missing" and ob.get("at") is not None and n is not None:
+                evs = by_n.get(n)
+                if evs:
+                    evs[0][0] = ob["at"]; evs[0][1] = ob["at"] + dur_of(n); retimed += 1
+                else:
+                    adds.append((n, ob["at"], ob["at"] + dur_of(n)))
+        final = [ev for ev in final if id(ev) not in drop]
+        here = {ev[3] for ev in final if ev[3] is not None}
+        added = 0
+        for n, s, e in adds:                        # don't double-place (wrong+missing)
+            if n in here:
+                continue
+            final.append([s, e, lines[n][0], n]); here.add(n); added += 1
+        print(f"  applied review notes ({len(obs)} obs): +{added} added, "
+              f"{retimed} retimed, {trimmed} trimmed, -{removed} removed")
+        return final
+
+    final = apply_review_notes(final)
+
+    final.sort(key=lambda x: x[0])
+    final_times, final_text = {}, {}
+    out = pysubs2.SSAFile()
+    for s, e, txt, eli in final:
         if eli is not None:
             final_times[eli] = (max(s, 0), e)
-        out.append(
-            pysubs2.SSAEvent(start=int(max(s, 0) * 1000), end=int(e * 1000), text=txt)
-        )
+            final_text[eli] = txt
+        out.append(pysubs2.SSAEvent(start=int(max(s, 0) * 1000), end=int(e * 1000), text=txt))
     out.sort()
+    placed = len(final)
+    # resync placement bookkeeping to the post-notes track (TSV/JSON match the .ass)
+    for li in range(len(lines)):
+        if li in final_times:
+            if times[li] is None or method[li] is None:
+                method[li] = "note"
+            times[li] = final_times[li]
+        else:
+            times[li] = None
     dst = os.path.join(outdir, stem + ".ja.ass")
     out.save(dst)
 
@@ -1065,7 +1142,7 @@ def process(a, onepace, jasubs, outdir):
         review["lines"].append(
             {
                 "n": li,
-                "text": disp,
+                "text": final_text.get(li, disp),
                 "method": method[li] if ft else None,
                 "start": round(ft[0], 3) if ft else None,
                 "end": round(ft[1], 3) if ft else None,
