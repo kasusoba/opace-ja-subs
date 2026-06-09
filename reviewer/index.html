@@ -144,6 +144,21 @@
   .kchip { min-width: 84px; text-align: center; font-family: ui-monospace, monospace; }
   .kchip.capturing { border-color: var(--accent2); color: var(--accent2); }
   .kclr { color: var(--bad); border: none; background: none; padding: 0 4px; }
+
+  /* ---------- right-click menu + toast ---------- */
+  .ctxmenu { position: fixed; z-index: 30; background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 4px; min-width: 210px; box-shadow: 0 8px 24px rgba(0,0,0,.55); display: none; }
+  .ctxmenu.show { display: block; }
+  .ctxmenu button { display: block; width: 100%; text-align: left; background: none; border: none;
+    padding: 6px 10px; border-radius: 5px; }
+  .ctxmenu button:hover { background: var(--panel); }
+  .ctxmenu .sep { height: 1px; background: var(--line); margin: 4px 0; }
+  .ctxmenu .hd { padding: 4px 10px; color: var(--dim); font-size: 11px; }
+  #toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    background: var(--panel2); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 14px;
+    z-index: 40; opacity: 0; transition: opacity .15s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #nowtime { cursor: pointer; }
   .hint { color: var(--dim); font-size: 12px; }
   kbd { background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px;
     border-radius: 4px; padding: 0 5px; font-size: 11px; font-family: ui-monospace, monospace; }
@@ -269,6 +284,9 @@
     </div>
   </div>
 </div>
+
+<div id="ctx" class="ctxmenu"></div>
+<div id="toast"></div>
 
 <script>
 "use strict";
@@ -403,11 +421,12 @@ function buildList() {
     acts.appendChild(mkAct("✎ note", () => openFlag("note", l)));
     row.appendChild(acts);
 
-    // click time/n to seek (emitted) ; click text to expand actions
-    tcell.onclick = (e) => { e.stopPropagation(); if (l.emitted) seek(l.start); };
+    // click time → seek + copy timestamp ; click # → actions ; right-click → quick menu
+    tcell.onclick = (e) => { e.stopPropagation(); if (l.emitted) { seek(l.start); copyText(fmt(l.start)); } };
     row.querySelector(".n").onclick = (e) => { e.stopPropagation(); toggleActs(row); };
     main.onclick = () => { if (l.emitted) seek(l.start); else toggleActs(row); };
     row.ondblclick = () => toggleActs(row);
+    row.oncontextmenu = (e) => openCtx(e, l);
 
     list.appendChild(row);
     rowEls[l.n] = row;
@@ -663,6 +682,61 @@ $("#fileNotes").onchange = (e) => {
   r.readAsText(f); e.target.value = "";
 };
 
+// ---- copy / toast ----------------------------------------------------------
+let toastTimer = null;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1300);
+}
+function copyText(s, msg) {
+  if (!navigator.clipboard) { toast("copy unavailable"); return; }
+  navigator.clipboard.writeText(s).then(() => toast(msg || "copied " + s)).catch(() => toast("copy blocked"));
+}
+$("#nowtime").title = "click to copy current time";
+$("#nowtime").onclick = () => copyText(fmt(video.currentTime), "copied " + fmt(video.currentTime));
+
+// ---- right-click quick menu on a line --------------------------------------
+// the optimal "sub is late" flow: park the playhead at the correct moment,
+// right-click the line, "Set start → now" — no copy/paste, no dialog.
+function quickObs(ob, msg) { ob.id = nextId(); observations.push(ob); saveObservations(); renderObs(); toast(msg); }
+function openCtx(e, l) {
+  e.preventDefault();
+  const t = video.currentTime;
+  const items = [{ hd: `#${l.n} · playhead ${fmt(t)}` }];
+  if (l.emitted) {
+    items.push({ label: `⏱ Set start → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: l.start, method: l.method, start: t }, `retime #${l.n} start → ${fmt(t)}`) });
+    items.push({ label: `⏱ Set end → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: l.start, method: l.method, end: t }, `retime #${l.n} end → ${fmt(t)}`) });
+    items.push({ sep: 1 });
+    items.push({ label: "✕ Remove (shouldn't exist)", fn: () => openFlag("exclude", l) });
+    items.push({ label: "≠ Wrong line…", fn: () => openFlag("wrong", l) });
+    items.push({ label: "⏱ Retime… (dialog)", fn: () => openFlag("retime", l) });
+  } else {
+    items.push({ label: `⚑ Place here → now (${fmt(t)})`, fn: () => quickObs({ kind: "missing", n: l.n, text: l.text, at: t }, `missing #${l.n} @ ${fmt(t)}`) });
+    items.push({ label: "⚑ I hear it here… (dialog)", fn: () => openFlag("missing", l) });
+  }
+  items.push({ sep: 1 });
+  items.push({ label: "✎ Note…", fn: () => openFlag("note", l) });
+  showCtx(e.clientX, e.clientY, items);
+}
+function showCtx(x, y, items) {
+  const m = $("#ctx"); m.innerHTML = "";
+  for (const it of items) {
+    if (it.sep) { m.appendChild(el("div", "sep")); continue; }
+    if (it.hd) { m.appendChild(el("div", "hd", it.hd)); continue; }
+    const b = el("button", null, it.label);
+    b.onclick = () => { hideCtx(); it.fn(); };
+    m.appendChild(b);
+  }
+  m.style.left = "0px"; m.style.top = "0px"; m.classList.add("show");
+  m.style.left = Math.min(x, window.innerWidth - m.offsetWidth - 6) + "px";
+  m.style.top = Math.min(y, window.innerHeight - m.offsetHeight - 6) + "px";
+}
+function hideCtx() { $("#ctx").classList.remove("show"); }
+document.addEventListener("click", hideCtx);
+document.addEventListener("scroll", hideCtx, true);
+window.addEventListener("blur", hideCtx);
+
 // ---- keyboard shortcuts (rebindable, asbplayer-style) ----------------------
 const ACTIONS = [
   { id: "playPause",     label: "Play / pause",              def: " " },
@@ -721,6 +795,7 @@ document.addEventListener("keydown", (e) => {
     }
     capturing = null; renderKeys(); return;
   }
+  if ($("#ctx").classList.contains("show") && e.key === "Escape") { hideCtx(); e.preventDefault(); return; }
   if ($("#settings").classList.contains("show")) { if (e.key === "Escape") $("#sClose").onclick(); return; }
   if ($("#help").classList.contains("show")) { if (e.key === "Escape") $("#hClose").onclick(); return; }
   if ($("#modal").classList.contains("show")) {
@@ -730,6 +805,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
   if (!videoFile) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return; // let Ctrl/⌘+C, paste, etc. pass through
   const id = actionForKey(normKey(e));
   if (id && HANDLERS[id]) { e.preventDefault(); e.stopPropagation(); HANDLERS[id](); }
 }, true);

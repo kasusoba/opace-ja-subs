@@ -34,6 +34,13 @@ free note) and exports them as a list for a human to judge into the right fix
    | ▭ no sub here | a whole stretch (from → to) has no subtitle |
 
    Subtitles on the video are **selectable** — hover with Yomitan to look up words.
+
+   **Right-click any line** for quick actions at the current playhead — including
+   *Set start → now* / *Set end → now* (emitted lines) and *Place here → now*
+   (unplaced). This is the fast path for a **late/early sub**: park the playhead
+   where the line should start, right-click it, *Set start → now* — no dialog, no
+   copy/paste. Clicking a blue timestamp also **copies** it (and the "now" clock
+   under the video is click-to-copy).
 6. When the episode's done, **Export** (or **Copy JSON**) and send the
    `…​.review-notes.json` over.
 
