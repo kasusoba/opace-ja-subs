@@ -1050,6 +1050,37 @@ def process(a, onepace, jasubs, outdir):
         for s, e, txt, parent in sorted(part_events):
             f.write(f"{parent}\tpart\t{hms(s)}\t{hms(e)}\t-\t{txt}\n")
 
+    # machine-readable twin of the TSV for the review player (reviewer/index.html):
+    # every official line with its final on-screen times + emitted flag, so the
+    # player can render the track AND surface unplaced lines for auditing.
+    import json as _json
+    review = {
+        "episode": stem,
+        "video": os.path.basename(onepace),
+        "lines": [],
+        "parts": [],
+    }
+    for li, (disp, p0, p1, vs, ve) in enumerate(lines):
+        ft = final_times.get(li)
+        review["lines"].append(
+            {
+                "n": li,
+                "text": disp,
+                "method": method[li] if ft else None,
+                "start": round(ft[0], 3) if ft else None,
+                "end": round(ft[1], 3) if ft else None,
+                "vtt": round(vs, 3),
+                "emitted": ft is not None,
+            }
+        )
+    for s, e, txt, parent in sorted(part_events):
+        if parent not in final_times:  # a part shows only when its cue didn't
+            review["parts"].append(
+                {"parent": parent, "text": txt, "start": round(s, 3), "end": round(e, 3)}
+            )
+    with open(dst + ".review.json", "w", encoding="utf-8") as f:
+        _json.dump(review, f, ensure_ascii=False)
+
     # 6) report
     ev_sorted = sorted((ev.start / 1000.0, ev.end / 1000.0) for ev in out)
     gaps = []

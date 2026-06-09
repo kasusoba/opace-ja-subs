@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>opace subtitle reviewer</title>
+<style>
+  :root {
+    --bg: #11151c; --panel: #1a212c; --panel2: #222c3a; --line: #2c3a4d;
+    --fg: #e7edf5; --dim: #8da0b8; --accent: #4ea1ff; --accent2: #ffb84e;
+    --good: #46c98b; --bad: #ff6b6b; --warn: #ffb84e; --pin: #b58bff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  button { font: inherit; color: var(--fg); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px;
+    cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  input, textarea { font: inherit; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  /* ---------- top bar ---------- */
+  #top { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    background: var(--panel); border-bottom: 1px solid var(--line); }
+  #top .ep { font-weight: 600; color: var(--accent); }
+  #top .spacer { flex: 1; }
+  #top .stat { color: var(--dim); font-size: 12px; }
+
+  /* ---------- layout ---------- */
+  #app { display: none; grid-template-columns: 1fr 460px; grid-template-rows: 1fr;
+    height: calc(100vh - 45px); }
+  #left { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); }
+  #videowrap { position: relative; background: #000; flex: 1; min-height: 0;
+    display: flex; align-items: center; justify-content: center; }
+  video { max-width: 100%; max-height: 100%; }
+  #overlay { position: absolute; left: 0; right: 0; bottom: 6%; text-align: center;
+    pointer-events: none; padding: 0 6%; }
+  #overlay .cap { display: inline-block; background: rgba(0,0,0,.62);
+    color: #fff; padding: 2px 10px; border-radius: 4px; font-size: clamp(16px, 2.4vw, 30px);
+    line-height: 1.35; text-shadow: 0 2px 4px #000; white-space: pre-wrap; }
+  #overlay .cap.part { color: var(--accent2); font-size: .82em; }
+
+  /* current-line flag bar */
+  #flagbar { background: var(--panel); border-top: 1px solid var(--line);
+    padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  #flagbar .now { color: var(--dim); font-size: 12px; min-width: 64px; }
+  #flagbar .curtext { flex: 1; min-width: 120px; color: var(--fg); }
+  #flagbar .curtext .meta { color: var(--dim); font-size: 11px; }
+
+  /* observations */
+  #obs { background: var(--panel); border-top: 1px solid var(--line);
+    max-height: 34%; overflow: auto; padding: 6px 12px; }
+  #obs h3 { margin: 4px 0 6px; font-size: 12px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: .05em; }
+  .ob { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0;
+    border-top: 1px solid var(--line); }
+  .ob:first-of-type { border-top: none; }
+  .ob .k { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+    white-space: nowrap; }
+  .ob .body { flex: 1; min-width: 0; }
+  .ob .body .t { word-break: break-word; }
+  .ob .body .note { color: var(--accent2); font-size: 12px; }
+  .ob .body .ref { color: var(--dim); font-size: 11px; }
+  .ob .del { color: var(--bad); background: none; border: none; padding: 0 4px; }
+
+  .k.exclude { background: #4a1f24; color: var(--bad); }
+  .k.missing { background: #173b2c; color: var(--good); }
+  .k.retime  { background: #4a3a17; color: var(--warn); }
+  .k.wrong   { background: #3a2247; color: var(--pin); }
+  .k.note    { background: #20303f; color: var(--accent); }
+
+  /* ---------- subtitle list ---------- */
+  #listwrap { display: flex; flex-direction: column; min-width: 0; }
+  #listhead { padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+  #listhead label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  #list { overflow: auto; flex: 1; }
+  .row { display: grid; grid-template-columns: 40px 62px 1fr; gap: 6px;
+    padding: 4px 8px; border-bottom: 1px solid #1f2734; align-items: start; cursor: default; }
+  .row .n { color: var(--dim); font-size: 11px; text-align: right; }
+  .row .time { font-size: 11px; }
+  .row .txt { word-break: break-word; }
+  .row .badge { font-size: 10px; color: var(--dim); }
+  .row .acts { grid-column: 1 / -1; display: none; gap: 6px; padding: 4px 0 2px 46px; }
+  .row.open .acts { display: flex; flex-wrap: wrap; }
+  .row .acts button { padding: 2px 7px; font-size: 12px; }
+  .row.emitted { cursor: pointer; }
+  .row.emitted .time { color: var(--accent); }
+  .row.unplaced { background: #161b22; }
+  .row.unplaced .txt { color: var(--dim); }
+  .row.ingap { background: #1d2230; }
+  .row.ingap.unplaced .txt { color: #c3b27a; }
+  .row.current { background: #233247; box-shadow: inset 3px 0 0 var(--accent); }
+  .row.flagged { box-shadow: inset 3px 0 0 var(--accent2); }
+  .row .m-pin    { color: var(--pin); }
+  .row .m-interp { color: var(--warn); }
+  .row .m-rescue, .row .m-part { color: var(--accent2); }
+
+  /* ---------- dropzone ---------- */
+  #drop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px; background: var(--bg); text-align: center; padding: 24px; }
+  #drop.hide { display: none; }
+  #drop .box { border: 2px dashed var(--line); border-radius: 14px; padding: 40px 50px; max-width: 640px; }
+  #drop.hot .box { border-color: var(--accent); background: var(--panel); }
+  #drop h1 { margin: 0 0 6px; font-size: 20px; }
+  #drop p { color: var(--dim); margin: 6px 0; }
+  #drop code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
+  #drop .files { color: var(--dim); font-size: 13px; margin-top: 8px; }
+  #drop .ok { color: var(--good); }
+
+  /* ---------- modal ---------- */
+  #modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+    align-items: center; justify-content: center; z-index: 20; }
+  #modal.show { display: flex; }
+  #modal .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    width: 460px; max-width: 92vw; padding: 16px 18px; }
+  #modal h2 { margin: 0 0 4px; font-size: 16px; }
+  #modal .sub { color: var(--dim); font-size: 13px; margin-bottom: 12px; word-break: break-word; }
+  #modal .field { margin: 8px 0; }
+  #modal .field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 3px; }
+  #modal textarea { width: 100%; min-height: 64px; resize: vertical; }
+  #modal .timerow { display: flex; gap: 8px; align-items: center; }
+  #modal .timerow input { width: 110px; }
+  #modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  #modal .actions .save { background: #1d3a5c; border-color: var(--accent); }
+  .hint { color: var(--dim); font-size: 12px; }
+  kbd { background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; font-size: 11px; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+
+<div id="top">
+  <span class="ep" id="epname">opace reviewer</span>
+  <span class="stat" id="stat"></span>
+  <span class="spacer"></span>
+  <button id="btnLoadAnother" title="Load a different episode">Load…</button>
+  <button id="btnCopy" title="Copy observations JSON to clipboard">Copy JSON</button>
+  <button id="btnExport" title="Download review-notes.json">Export ⬇</button>
+</div>
+
+<div id="app">
+  <div id="left">
+    <div id="videowrap">
+      <video id="video" controls></video>
+      <div id="overlay"></div>
+    </div>
+    <div id="flagbar">
+      <span class="now mono" id="nowtime">0:00.0</span>
+      <span class="curtext" id="curtext"><span class="meta">— no active line —</span></span>
+      <button data-flag="exclude" data-cur="1" title="Shown but shouldn't be (x)">✕ remove</button>
+      <button data-flag="retime" data-cur="1" title="Right line, wrong time — seek to where it should start first">⏱ retime</button>
+      <button data-flag="wrong" data-cur="1" title="Wrong line is shown here">≠ wrong</button>
+      <button data-flag="note" data-cur="0" title="Free note at this moment (c)">✎ note@now</button>
+    </div>
+    <div id="obs">
+      <h3>Observations (<span id="obscount">0</span>) — autosaved</h3>
+      <div id="oblist"></div>
+    </div>
+  </div>
+
+  <div id="listwrap">
+    <div id="listhead">
+      <label><input type="checkbox" id="follow" checked /> follow</label>
+      <label><input type="checkbox" id="showUnplaced" checked /> show unplaced</label>
+      <span class="spacer" style="flex:1"></span>
+      <span id="legend" class="mono"></span>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<div id="drop">
+  <div class="box">
+    <h1>opace subtitle reviewer</h1>
+    <p>Drop an episode <b>video</b> and its <code>.ja.ass.review.json</code> here.</p>
+    <p class="hint">(generate the json by running <code>opace_asr_bridge.py</code>; it lands next to the video)</p>
+    <p>
+      <button id="pickVideo">Choose video…</button>
+      <button id="pickJson">Choose review.json…</button>
+    </p>
+    <div class="files" id="dropfiles"></div>
+    <input type="file" id="fileVideo" accept="video/*,.mkv,.mp4,.webm" hidden />
+    <input type="file" id="fileJson" accept=".json,application/json" hidden />
+  </div>
+</div>
+
+<div id="modal">
+  <div class="card">
+    <h2 id="mTitle">Flag</h2>
+    <div class="sub" id="mSub"></div>
+    <div class="field" id="mTimeField">
+      <label id="mTimeLabel">Timestamp</label>
+      <div class="timerow">
+        <input class="mono" id="mTime" />
+        <button id="mTimeNow" title="Use current playhead">⟲ now</button>
+        <span class="hint" id="mTimeHint"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Note <span class="hint" id="mNoteHint"></span></label>
+      <textarea id="mNote" placeholder="What did you observe? (optional but helpful)"></textarea>
+    </div>
+    <div class="actions">
+      <button id="mCancel">Cancel</button>
+      <button class="save" id="mSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------
+// opace subtitle reviewer — a capture tool, not a resolver.
+// It renders the generated track + surfaces unplaced official lines, and lets
+// you flag observations (exclude / missing / retime / wrong / note). The export
+// is a LIST for a human to judge — it never decides excludes/pins itself.
+// Single file, no build, no server: open in a browser, drop video + review.json.
+// ---------------------------------------------------------------------------
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, txt) => { const e = document.createElement(tag);
+  if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+let review = null;      // parsed review.json
+let lines = [];         // review.lines (all official lines, by n)
+let parts = [];         // review.parts (concurrent cue fragments)
+let emitted = [];       // emitted lines sorted by start (the on-screen track)
+let rowEls = [];        // DOM row per line index n
+let observations = [];  // the capture list
+let videoFile = null, jsonReady = false;
+const video = $("#video");
+
+// ---- time helpers ----------------------------------------------------------
+const fmt = (s) => {
+  if (s == null) return "—";
+  const m = Math.floor(s / 60), r = (s - m * 60);
+  return m + ":" + (r < 10 ? "0" : "") + r.toFixed(1);
+};
+const parseTime = (str) => {              // "11:39", "11:39.5", "699.1", "0:11:39"
+  str = (str || "").trim();
+  if (!str) return null;
+  const p = str.split(":").map(Number);
+  if (p.some(isNaN)) return null;
+  if (p.length === 1) return p[0];
+  if (p.length === 2) return p[0] * 60 + p[1];
+  return p[0] * 3600 + p[1] * 60 + p[2];
+};
+const cleanText = (t) => (t || "").replace(/\{[^}]*\}/g, "").replace(/\\N/g, "\n");
+
+// ---- loading ---------------------------------------------------------------
+function tryStart() {
+  $("#dropfiles").innerHTML =
+    (videoFile ? `<span class="ok">✓ video: ${videoFile.name}</span><br>` : "video: —<br>") +
+    (jsonReady ? `<span class="ok">✓ json: ${review.episode}</span>` : "json: —");
+  if (videoFile && jsonReady) start();
+}
+function loadJson(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      review = JSON.parse(r.result);
+      lines = review.lines || [];
+      parts = review.parts || [];
+      emitted = lines.filter((l) => l.emitted && l.start != null)
+                     .sort((a, b) => a.start - b.start);
+      jsonReady = true;
+      restoreObservations();
+      tryStart();
+    } catch (e) { alert("Bad review.json: " + e.message); }
+  };
+  r.readAsText(file);
+}
+function loadVideo(file) { videoFile = file; tryStart(); }
+
+function classifyFile(file) {
+  if (/\.json$/i.test(file.name)) loadJson(file);
+  else if (file.type.startsWith("video/") || /\.(mkv|mp4|webm|m4v|avi)$/i.test(file.name)) loadVideo(file);
+}
+// drag & drop anywhere
+["dragenter", "dragover"].forEach((ev) => document.addEventListener(ev, (e) => {
+  e.preventDefault(); $("#drop").classList.add("hot"); }));
+document.addEventListener("dragleave", (e) => { if (e.target === $("#drop")) $("#drop").classList.remove("hot"); });
+document.addEventListener("drop", (e) => {
+  e.preventDefault(); $("#drop").classList.remove("hot");
+  for (const f of e.dataTransfer.files) classifyFile(f);
+});
+$("#pickVideo").onclick = () => $("#fileVideo").click();
+$("#pickJson").onclick = () => $("#fileJson").click();
+$("#fileVideo").onchange = (e) => e.target.files[0] && loadVideo(e.target.files[0]);
+$("#fileJson").onchange = (e) => e.target.files[0] && loadJson(e.target.files[0]);
+$("#btnLoadAnother").onclick = () => { $("#drop").classList.remove("hide"); };
+
+function start() {
+  $("#drop").classList.add("hide");
+  $("#app").style.display = "grid";
+  $("#epname").textContent = review.episode;
+  video.src = URL.createObjectURL(videoFile);
+  video.onerror = () => $("#stat").innerHTML =
+    `⚠ browser can't decode this file — remux: <code class="mono">ffmpeg -i in.mkv -c copy out.mp4</code>`;
+  const em = emitted.length, tot = lines.length;
+  const mism = videoFile.name !== review.video ? ` · ⚠ video name ≠ json` : "";
+  $("#stat").textContent = `${em}/${tot} shown · ${tot - em} unplaced${mism}`;
+  $("#legend").textContent = "pin interp rescue/part";
+  buildList();
+  loop();
+}
+
+// ---- subtitle list ---------------------------------------------------------
+function methodBadge(l) {
+  if (!l.emitted) return { txt: "—", cls: "" };
+  const m = l.method || "";
+  return { txt: m, cls: "m-" + m.replace(/\+.*/, "").replace(/[^a-z]/g, "") };
+}
+function buildList() {
+  const list = $("#list"); list.innerHTML = ""; rowEls = [];
+  const showUn = $("#showUnplaced").checked;
+  for (const l of lines) {
+    const row = el("div", "row" + (l.emitted ? " emitted" : " unplaced"));
+    row.dataset.n = l.n;
+    if (!l.emitted && !showUn) row.style.display = "none";
+    const b = methodBadge(l);
+    row.appendChild(el("div", "n", l.n));
+    const tcell = el("div", "time mono", l.emitted ? fmt(l.start) : "");
+    row.appendChild(tcell);
+    const main = el("div");
+    const txt = el("div", "txt"); txt.textContent = cleanText(l.text); main.appendChild(txt);
+    if (b.txt !== "—") { const bd = el("span", "badge " + b.cls, b.txt); main.appendChild(bd); }
+    row.appendChild(main);
+
+    // inline action buttons (toggle on click of the n/time area)
+    const acts = el("div", "acts");
+    if (l.emitted) {
+      acts.appendChild(mkAct("✕ remove", () => openFlag("exclude", l)));
+      acts.appendChild(mkAct("⏱ retime", () => openFlag("retime", l)));
+      acts.appendChild(mkAct("≠ wrong", () => openFlag("wrong", l)));
+    } else {
+      acts.appendChild(mkAct("⚑ I hear it here", () => openFlag("missing", l)));
+    }
+    acts.appendChild(mkAct("✎ note", () => openFlag("note", l)));
+    row.appendChild(acts);
+
+    // click time/n to seek (emitted) ; click text to expand actions
+    tcell.onclick = (e) => { e.stopPropagation(); if (l.emitted) seek(l.start); };
+    row.querySelector(".n").onclick = (e) => { e.stopPropagation(); toggleActs(row); };
+    main.onclick = () => { if (l.emitted) seek(l.start); else toggleActs(row); };
+    row.ondblclick = () => toggleActs(row);
+
+    list.appendChild(row);
+    rowEls[l.n] = row;
+  }
+  renderObs();
+}
+function mkAct(label, fn) { const b = el("button", null, label); b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; }
+function toggleActs(row) { row.classList.toggle("open"); }
+$("#showUnplaced").onchange = buildList;
+
+function seek(t) { video.currentTime = Math.max(0, t); video.play(); }
+
+// ---- playback loop: overlay + current highlight + auditor gap --------------
+let lastCurN = -1;
+function activeAt(t) {                 // emitted lines covering t
+  return emitted.filter((l) => t >= l.start && t < l.end);
+}
+function bracket(t) {                   // nearest emitted before/after t (by start)
+  let prev = null, next = null;
+  for (const l of emitted) {
+    if (l.start <= t) prev = l;
+    else { next = l; break; }
+  }
+  return [prev, next];
+}
+function loop() {
+  const t = video.currentTime;
+  $("#nowtime").textContent = fmt(t);
+
+  // overlay
+  const act = activeAt(t);
+  const pact = parts.filter((p) => t >= p.start && t < p.end);
+  const ov = $("#overlay"); ov.innerHTML = "";
+  for (const l of act) { const c = el("div", "cap"); c.textContent = cleanText(l.text); ov.appendChild(c); ov.appendChild(document.createElement("br")); }
+  for (const p of pact) { const c = el("div", "cap part"); c.textContent = cleanText(p.text); ov.appendChild(c); }
+
+  // flag bar current line
+  const cur = act[act.length - 1] || null;
+  const ct = $("#curtext");
+  if (cur) ct.innerHTML = `<span class="mono" style="color:var(--dim)">#${cur.n}</span> ${cleanText(cur.text).replace(/\n/g, " ⏎ ")}`;
+  else ct.innerHTML = `<span class="meta">— no active line —</span>`;
+  document.querySelectorAll('#flagbar button[data-cur="1"]').forEach((b) => b.disabled = !cur);
+  $("#flagbar").dataset.curn = cur ? cur.n : "";
+
+  // current-row highlight + auditor gap
+  const [prev, next] = bracket(t);
+  const curN = (cur || prev) ? (cur || prev).n : -1;
+  if (curN !== lastCurN) {
+    document.querySelectorAll(".row.current").forEach((r) => r.classList.remove("current"));
+    document.querySelectorAll(".row.ingap").forEach((r) => r.classList.remove("ingap"));
+    if (rowEls[curN]) {
+      rowEls[curN].classList.add("current");
+      if ($("#follow").checked && !listHover) rowEls[curN].scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    // unplaced lines whose n falls in the current gap = "might be spoken here"
+    const lo = prev ? prev.n : -1, hi = next ? next.n : Infinity;
+    for (const l of lines) if (!l.emitted && l.n > lo && l.n < hi && rowEls[l.n]) rowEls[l.n].classList.add("ingap");
+    lastCurN = curN;
+  }
+  requestAnimationFrame(loop);
+}
+let listHover = false;
+$("#list").addEventListener("pointerenter", () => listHover = true);
+$("#list").addEventListener("pointerleave", () => listHover = false);
+
+// ---- flagging modal --------------------------------------------------------
+const KINDS = {
+  exclude: { title: "Remove — shown but shouldn't be", needTime: false,
+    sub: (l) => `#${l.n} ${cleanText(l.text)}`, noteHint: "(why is it wrong here?)" },
+  missing: { title: "Missing — I hear this line here", needTime: true,
+    sub: (l) => `#${l.n} ${cleanText(l.text)}`, timeLabel: "Heard at",
+    timeHint: "moment you hear it start", noteHint: "(optional)" },
+  retime:  { title: "Retime — right line, wrong time", needTime: true,
+    sub: (l) => `#${l.n} ${cleanText(l.text)} (now at ${fmt(l.start)})`, timeLabel: "Should start at",
+    timeHint: "seek to the correct start, then ⟲ now", noteHint: "(optional)" },
+  wrong:   { title: "Wrong line shown here", needTime: false,
+    sub: (l) => `#${l.n} ${cleanText(l.text)}`, noteHint: "what should it be instead?" },
+  note:    { title: "Note at this moment", needTime: true,
+    sub: (l) => l ? `near #${l.n} ${cleanText(l.text)}` : "(not tied to a line)",
+    timeLabel: "At", timeHint: "", noteHint: "" },
+};
+let pending = null;
+function openFlag(kind, line) {
+  const k = KINDS[kind];
+  pending = { kind, line };
+  $("#mTitle").textContent = k.title;
+  $("#mSub").textContent = k.sub(line);
+  $("#mTimeField").style.display = k.needTime ? "" : "none";
+  $("#mTimeLabel").textContent = k.timeLabel || "Timestamp";
+  $("#mTimeHint").textContent = k.timeHint || "";
+  $("#mNoteHint").textContent = k.noteHint || "";
+  $("#mTime").value = fmt(video.currentTime);
+  $("#mNote").value = "";
+  $("#modal").classList.add("show");
+  setTimeout(() => (k.needTime ? $("#mTime") : $("#mNote")).focus(), 30);
+}
+$("#mTimeNow").onclick = () => $("#mTime").value = fmt(video.currentTime);
+$("#mCancel").onclick = () => $("#modal").classList.remove("show");
+$("#modal").onclick = (e) => { if (e.target === $("#modal")) $("#mCancel").onclick(); };
+$("#mSave").onclick = () => {
+  const k = KINDS[pending.kind], l = pending.line;
+  const ob = {
+    id: nextId(), kind: pending.kind,
+    n: l ? l.n : null, text: l ? l.text : null,
+    shownStart: l && l.emitted ? l.start : null,
+    method: l ? l.method : null,
+    note: $("#mNote").value.trim() || null,
+  };
+  if (k.needTime) ob.at = parseTime($("#mTime").value);
+  observations.push(ob);
+  saveObservations(); renderObs();
+  $("#modal").classList.remove("show");
+};
+let _id = 0; function nextId() { return ++_id; }
+
+// flag bar buttons
+$("#flagbar").querySelectorAll("button[data-flag]").forEach((b) => b.onclick = () => {
+  const kind = b.dataset.flag;
+  const curN = $("#flagbar").dataset.curn;
+  const line = curN !== "" ? lines[+curN] : null;
+  if (b.dataset.cur === "1" && !line) return;
+  openFlag(kind, line);
+});
+
+// ---- observations render + persistence -------------------------------------
+function renderObs() {
+  observations.sort((a, b) => (a.at ?? a.shownStart ?? 0) - (b.at ?? b.shownStart ?? 0));
+  const box = $("#oblist"); box.innerHTML = "";
+  $("#obscount").textContent = observations.length;
+  // mark flagged rows
+  document.querySelectorAll(".row.flagged").forEach((r) => r.classList.remove("flagged"));
+  for (const ob of observations) {
+    if (ob.n != null && rowEls[ob.n]) rowEls[ob.n].classList.add("flagged");
+    const row = el("div", "ob");
+    row.appendChild(el("span", "k " + ob.kind, ob.kind));
+    const body = el("div", "body");
+    const t = el("div", "t");
+    const when = ob.at != null ? fmt(ob.at) : (ob.shownStart != null ? fmt(ob.shownStart) : "");
+    t.innerHTML = `<span class="mono ref">${when}${ob.n != null ? " · #" + ob.n : ""}</span> ` +
+      (ob.text ? cleanText(ob.text).replace(/\n/g, " ⏎ ") : "");
+    body.appendChild(t);
+    if (ob.note) body.appendChild(el("div", "note", "↳ " + ob.note));
+    row.appendChild(body);
+    const del = el("button", "del", "✕"); del.title = "delete";
+    del.onclick = () => { observations = observations.filter((o) => o !== ob); saveObservations(); renderObs(); };
+    row.appendChild(del);
+    // click jumps to it
+    if (when) t.style.cursor = "pointer", t.onclick = () => seek(ob.at ?? ob.shownStart);
+    box.appendChild(row);
+  }
+}
+function storeKey() { return "opace-review:" + (review ? review.episode : ""); }
+function saveObservations() { try { localStorage.setItem(storeKey(), JSON.stringify(observations)); } catch (e) {} }
+function restoreObservations() {
+  try {
+    const s = localStorage.getItem(storeKey());
+    observations = s ? JSON.parse(s) : [];
+    _id = observations.reduce((m, o) => Math.max(m, o.id || 0), 0);
+  } catch (e) { observations = []; }
+}
+
+// ---- export ----------------------------------------------------------------
+function exportObj() {
+  return {
+    episode: review.episode, video: review.video,
+    tool: "opace-reviewer", count: observations.length,
+    observations: observations.map(({ id, ...o }) => o),
+  };
+}
+$("#btnExport").onclick = () => {
+  const blob = new Blob([JSON.stringify(exportObj(), null, 2)], { type: "application/json" });
+  const a = el("a"); a.href = URL.createObjectURL(blob);
+  a.download = review.episode + ".review-notes.json"; a.click();
+};
+$("#btnCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(JSON.stringify(exportObj(), null, 2));
+    $("#btnCopy").textContent = "Copied ✓"; setTimeout(() => $("#btnCopy").textContent = "Copy JSON", 1200);
+  } catch (e) { alert("clipboard blocked — use Export"); }
+};
+
+// ---- keyboard --------------------------------------------------------------
+document.addEventListener("keydown", (e) => {
+  if ($("#modal").classList.contains("show")) {
+    if (e.key === "Escape") $("#mCancel").onclick();
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("#mSave").onclick();
+    return;
+  }
+  if (/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  if (!videoFile) return;
+  switch (e.key) {
+    case " ": e.preventDefault(); video.paused ? video.play() : video.pause(); break;
+    case "ArrowLeft":  video.currentTime -= e.shiftKey ? 10 : 2; break;
+    case "ArrowRight": video.currentTime += e.shiftKey ? 10 : 2; break;
+    case ",": video.currentTime -= 0.1; break;
+    case ".": video.currentTime += 0.1; break;
+    case "x": { const n = $("#flagbar").dataset.curn; if (n !== "") openFlag("exclude", lines[+n]); break; }
+    case "c": openFlag("note", currentLineForNote()); break;
+  }
+});
+function currentLineForNote() {
+  const n = $("#flagbar").dataset.curn;
+  if (n !== "") return lines[+n];
+  const [prev] = bracket(video.currentTime);
+  return prev || null;
+}
+$("#follow").onchange = () => { lastCurN = -2; };
+</script>
+</body>
+</html>

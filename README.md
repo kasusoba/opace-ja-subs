@@ -85,6 +85,17 @@ don't always match the TV episodes. The printed sample tells you (or a search en
 which episode the missing scene is from: add that sub file to the folder and re-run
 with `--force`.
 
+## Review while you watch
+
+`reviewer/index.html` is a single-file web app (no build, no server — just open it)
+for reviewing an episode and capturing what's wrong as a structured list. Drop in
+the video and its `…​.ja.ass.review.json` sidecar (written next to every output);
+it renders the track, surfaces unplaced official lines that fall in the gap you're
+watching ("is this spoken here?"), and lets you flag *remove / missing / retime /
+wrong / note* per line. Export the notes and hand them off — the fixes (excludes,
+pins, retimes, code) are decided from the list, not by the player. See
+[reviewer/README.md](reviewer/README.md).
+
 ## Fix a wrong line
 
 - `<video>.ja.ass.debug.tsv` lists every official line with its placement method and
