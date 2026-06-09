@@ -92,9 +92,11 @@ for reviewing an episode and capturing what's wrong as a structured list. Drop i
 the video and its `…​.ja.ass.review.json` sidecar (written next to every output);
 it renders the track, surfaces unplaced official lines that fall in the gap you're
 watching ("is this spoken here?"), and lets you flag *remove / missing / retime /
-wrong / note* per line. Export the notes and hand them off — the fixes (excludes,
-pins, retimes, code) are decided from the list, not by the player. See
-[reviewer/README.md](reviewer/README.md).
+wrong / trim / note* per line — each previewed live on the track. Export the notes,
+drop the `…​.review-notes.json` back in the episode folder, and re-run with
+`--force`: the tool **bakes** the edits into the `.ja.ass` (no re-transcription).
+Notes that need judgement (a missing source file, a structural fix) are decided
+from the list. See [reviewer/README.md](reviewer/README.md).
 
 ## Fix a wrong line
 

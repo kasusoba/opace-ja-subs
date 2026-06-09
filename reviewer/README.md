@@ -21,9 +21,11 @@ free note) and exports them as a list for a human to judge into the right fix
    - **unplaced** lines (greyed) — and when one falls in the gap you're currently
      watching, it lights up (`in gap`) as a "is this spoken here?" candidate. This
      is the auditor: it catches missing lines you'd otherwise have to notice by ear.
-5. Flag issues with the buttons (per row, or the bar under the video). Each is
-   just a captured *observation* — nothing is auto-fixed. The **?** button opens
-   the same reference in-app.
+5. Flag issues with the buttons (per row, or the bar under the video). Each flag
+   **previews live** on the track — the line moves, retimes, trims, appears, or
+   vanishes immediately so you can verify it — but the real `.ass` is only changed
+   when the pipeline bakes your exported notes (below). The **?** button opens the
+   same reference in-app.
    | Button | Meaning |
    |---|---|
    | ✕ remove | shown but shouldn't be (One Pace cut it) |
@@ -106,8 +108,18 @@ persist in the browser.
 Time fields: `at` (heard-at / note moment), `start`/`end` (retime — either or both),
 `from`/`to` (section span). `shownStart` is where the line currently sits, for
 reference. `n`/`text` point at the official line; `shouldBe` names the correct one.
-The judge turns each observation into the appropriate `excludes.txt`/`pins.txt`
-entry, a retime, or a code change.
+## Baking notes into the sub
+
+Drop the exported `…​.review-notes.json` next to the video and run the pipeline
+(`python opace_asr_bridge.py "<episode>" --force`). It applies the notes as a
+final edit layer — exclude/wrong remove a line, missing/wrong place one at the
+heard time, retime moves start/end, trim rewrites the text — baking them into the
+`.ja.ass` that mpv/VLC load. No re-matching or re-transcription happens.
+
+`review.json` is deliberately left **raw** (the pre-notes matcher track), so the
+reviewer always previews your notes on top of it without ever double-applying.
+The notes you couldn't express as a simple edit (a `section`, a `note`, anything
+structural) still need a human/code decision; the rest bake automatically.
 
 ## Notes
 

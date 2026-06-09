@@ -299,7 +299,7 @@
         <li><b>Ctrl/⌘-click</b> or <b>Shift-click</b> rows to multi-select, then: <b>Place block @ playhead</b> (lay unplaced lines out from the playhead by official spacing), <b>Remove all</b>, or right-click the <i>correct</i> line to mark the selected ones wrong. <kbd>Esc</kbd> clears.</li>
       </ul>
     </div>
-    <div class="hsec"><b>Flag buttons</b> — per row, or the bar under the video for the current line. Every flag is just a captured <i>observation</i>; nothing is auto-fixed.
+    <div class="hsec"><b>Flag buttons</b> — per row, or the bar under the video for the current line. Each flag previews on the track <b>live</b> (the line moves/changes/appears/vanishes as you flag), but the real <code>.ass</code> is baked by the pipeline from your exported notes — so nothing is silently changed.
       <ul>
         <li><span class="k exclude">✕ remove</span> — shown but shouldn't be (One Pace cut it).</li>
         <li><span class="k missing">⚑ here</span> — an unplaced line <i>is</i> spoken now (records the time).</li>
@@ -359,6 +359,7 @@ let parts = [];         // review.parts (concurrent cue fragments)
 let emitted = [];       // emitted lines sorted by start (the on-screen track)
 let rowEls = [];        // DOM row per line index n
 let observations = [];  // the capture list
+let effState = new Map();  // n -> effective {start,end,text,emitted,edited} after notes
 let videoFile = null, jsonReady = false;
 const video = $("#video");
 
@@ -474,9 +475,9 @@ function buildList() {
     row.appendChild(acts);
 
     // click time → seek + copy timestamp ; click # → actions ; right-click → quick menu
-    tcell.onclick = (e) => { e.stopPropagation(); if (l.emitted) { seek(l.start); copyText(fmt(l.start)); } };
+    tcell.onclick = (e) => { e.stopPropagation(); const t = effStart(l.n); if (t != null) { seek(t); copyText(fmt(t)); } };
     row.querySelector(".n").onclick = (e) => { e.stopPropagation(); toggleActs(row); };
-    main.onclick = () => { if (l.emitted) seek(l.start); else toggleActs(row); };
+    main.onclick = () => { const t = effStart(l.n); if (t != null) seek(t); else toggleActs(row); };
     row.ondblclick = () => toggleActs(row);
     row.oncontextmenu = (e) => openCtx(e, l);
     // capture phase so a modifier-click selects instead of seeking/expanding
@@ -545,7 +546,8 @@ function loop() {
     }
     // unplaced lines whose n falls in the current gap = "might be spoken here"
     const lo = prev ? prev.n : -1, hi = next ? next.n : Infinity;
-    for (const l of lines) if (!l.emitted && l.n > lo && l.n < hi && rowEls[l.n]) rowEls[l.n].classList.add("ingap");
+    for (const l of lines) { const s = effState.get(l.n);
+      if (s && !s.emitted && l.n > lo && l.n < hi && rowEls[l.n]) rowEls[l.n].classList.add("ingap"); }
     lastCurN = curN;
   }
   requestAnimationFrame(loop);
@@ -589,8 +591,9 @@ const KINDS = {
 let pending = null;
 function fieldDefault(def, line) {
   if (def === "now") return video.currentTime;
-  if (def === "start") return line && line.start != null ? line.start : null;
-  if (def === "end") return line && line.end != null ? line.end : null;
+  const s = line && effState.get(line.n);
+  if (def === "start") return s && s.start != null ? s.start : (line ? line.start : null);
+  if (def === "end") return s && s.end != null ? s.end : (line ? line.end : null);
   return null;
 }
 function openFlag(kind, line) {
@@ -815,6 +818,54 @@ $("#flagbar").querySelectorAll("button[data-flag]").forEach((b) => b.onclick = (
 });
 
 // ---- observations render + persistence -------------------------------------
+// live-preview: derive the on-screen track by applying observations to the raw
+// lines — the same edit layer the pipeline bakes into the .ass. So flagging a
+// fix updates the video overlay and list immediately.
+function applyEdits() {
+  const eff = new Map();
+  for (const l of lines) eff.set(l.n, { n: l.n, start: l.start, end: l.end, text: l.text, emitted: !!l.emitted, edited: false });
+  const dur = (n) => {
+    const l = lines[n];
+    let d = l && l.vdur != null ? l.vdur : cleanText(l ? l.text : "").length * 0.12 + 0.5;
+    return Math.min(Math.max(d, 0.4), 7);
+  };
+  const adds = [];
+  for (const ob of observations) {
+    const s = eff.get(ob.n);
+    switch (ob.kind) {
+      case "exclude": if (s) { s.emitted = false; s.edited = true; } break;
+      case "wrong":
+        if (s) { s.emitted = false; s.edited = true; }
+        { const m = /^#(\d+)/.exec(ob.shouldBe || ""); if (m && ob.at != null) adds.push({ n: +m[1], at: ob.at }); }
+        break;
+      case "trim": if (s && ob.keep != null) { s.text = ob.keep; s.edited = true; } break;
+      case "retime":
+        if (s && s.emitted) { if (ob.start != null) s.start = ob.start; if (ob.end != null) s.end = ob.end; s.edited = true; }
+        else if (s && ob.start != null) { s.emitted = true; s.start = ob.start; s.end = ob.end != null ? ob.end : ob.start + dur(ob.n); s.edited = true; }
+        break;
+      case "missing":
+        if (s && ob.at != null) { s.emitted = true; s.start = ob.at; s.end = ob.at + dur(ob.n); s.edited = true; }
+        break;
+    }
+  }
+  for (const a of adds) { const s = eff.get(a.n); if (s && !s.emitted) { s.emitted = true; s.start = a.at; s.end = a.at + dur(a.n); s.edited = true; } }
+  effState = eff;
+  emitted = [...eff.values()].filter((x) => x.emitted && x.start != null).sort((a, b) => a.start - b.start);
+  refreshRows();
+}
+function refreshRows() {
+  if (!rowEls.length) return;
+  for (const l of lines) {
+    const r = rowEls[l.n]; if (!r) continue;
+    const s = effState.get(l.n); const on = s.emitted && s.start != null;
+    r.classList.toggle("emitted", on);
+    r.classList.toggle("unplaced", !on);
+    r.classList.toggle("edited", s.edited);
+    const tc = r.querySelector(".time"); if (tc) tc.textContent = on ? fmt(s.start) : "";
+    const tx = r.querySelector(".txt"); if (tx) tx.textContent = cleanText(s.text);
+  }
+}
+function effStart(n) { const s = effState.get(n); return s && s.emitted ? s.start : null; }
 function obTime(o) { return o.at ?? o.start ?? o.from ?? o.shownStart ?? 0; }
 function obDetail(ob) {
   if (ob.kind === "retime")
@@ -826,6 +877,7 @@ function obDetail(ob) {
   return "";
 }
 function renderObs() {
+  applyEdits();  // recompute the live-preview track before drawing
   observations.sort((a, b) => obTime(a) - obTime(b));
   const box = $("#oblist"); box.innerHTML = "";
   $("#obscount").textContent = observations.length;
@@ -920,6 +972,7 @@ function openCtx(e, l) {
   const t = video.currentTime;
   const curn = $("#flagbar").dataset.curn;
   const curShown = curn !== "" && curn != null ? lines[+curn] : null;
+  const isOn = effStart(l.n) != null;
   const items = [{ hd: `#${l.n} · playhead ${fmt(t)}` }];
   if (selected.size && !selected.has(l.n)) {
     items.push({ label: `≠ ${selected.size} selected wrong — this (#${l.n}) is right`, fn: () => bulkWrong(l) });
@@ -928,13 +981,13 @@ function openCtx(e, l) {
   if (curShown && curShown.n !== l.n) {
     items.push({ label: `≠ Shown #${curShown.n} is wrong — this (#${l.n}) is right`,
       fn: () => quickObs({ kind: "wrong", n: curShown.n, text: curShown.text,
-        shownStart: curShown.emitted ? curShown.start : null, at: t,
+        shownStart: effStart(curShown.n), at: t,
         shouldBe: `#${l.n} ${cleanText(l.text)}` }, `wrong: #${curShown.n} → #${l.n}`) });
     items.push({ sep: 1 });
   }
-  if (l.emitted) {
-    items.push({ label: `⏱ Set start → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: l.start, method: l.method, start: t }, `retime #${l.n} start → ${fmt(t)}`) });
-    items.push({ label: `⏱ Set end → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: l.start, method: l.method, end: t }, `retime #${l.n} end → ${fmt(t)}`) });
+  if (isOn) {
+    items.push({ label: `⏱ Set start → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: effStart(l.n), method: l.method, start: t }, `retime #${l.n} start → ${fmt(t)}`) });
+    items.push({ label: `⏱ Set end → now (${fmt(t)})`, fn: () => quickObs({ kind: "retime", n: l.n, text: l.text, shownStart: effStart(l.n), method: l.method, end: t }, `retime #${l.n} end → ${fmt(t)}`) });
     items.push({ sep: 1 });
     items.push({ label: "✕ Remove (shouldn't exist)", fn: () => openFlag("exclude", l) });
     items.push({ label: "✂ Trim text (One Pace cut part)…", fn: () => openFlag("trim", l) });
