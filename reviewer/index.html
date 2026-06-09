@@ -40,9 +40,11 @@
   video { max-width: 100%; max-height: 100%; }
   #overlay { position: absolute; left: 0; right: 0; bottom: 6%; text-align: center;
     pointer-events: none; padding: 0 6%; }
+  /* captions are selectable so Yomitan (and copy) work on hover/drag */
   #overlay .cap { display: inline-block; background: rgba(0,0,0,.62);
     color: #fff; padding: 2px 10px; border-radius: 4px; font-size: clamp(16px, 2.4vw, 30px);
-    line-height: 1.35; text-shadow: 0 2px 4px #000; white-space: pre-wrap; }
+    line-height: 1.35; text-shadow: 0 2px 4px #000; white-space: pre-wrap;
+    pointer-events: auto; user-select: text; -webkit-user-select: text; cursor: text; }
   #overlay .cap.part { color: var(--accent2); font-size: .82em; }
 
   /* current-line flag bar */
@@ -113,21 +115,28 @@
   #drop .files { color: var(--dim); font-size: 13px; margin-top: 8px; }
   #drop .ok { color: var(--good); }
 
-  /* ---------- modal ---------- */
-  #modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+  /* ---------- modal / help overlay ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
     align-items: center; justify-content: center; z-index: 20; }
-  #modal.show { display: flex; }
-  #modal .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  .overlay.show { display: flex; }
+  .overlay .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
     width: 460px; max-width: 92vw; padding: 16px 18px; }
-  #modal h2 { margin: 0 0 4px; font-size: 16px; }
-  #modal .sub { color: var(--dim); font-size: 13px; margin-bottom: 12px; word-break: break-word; }
-  #modal .field { margin: 8px 0; }
-  #modal .field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 3px; }
-  #modal textarea { width: 100%; min-height: 64px; resize: vertical; }
-  #modal .timerow { display: flex; gap: 8px; align-items: center; }
-  #modal .timerow input { width: 110px; }
-  #modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-  #modal .actions .save { background: #1d3a5c; border-color: var(--accent); }
+  .overlay .card.help { width: 680px; max-height: 86vh; overflow: auto; }
+  .overlay h2 { margin: 0 0 4px; font-size: 16px; }
+  .overlay .sub { color: var(--dim); font-size: 13px; margin-bottom: 12px; word-break: break-word; }
+  .overlay .field { margin: 8px 0; }
+  .overlay .field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 3px; }
+  .overlay textarea { width: 100%; min-height: 64px; resize: vertical; }
+  .overlay input[type="text"], .overlay .field input:not(.mono) { width: 100%; }
+  .overlay .timerow { display: flex; gap: 8px; align-items: center; }
+  .overlay .timerow input { width: 120px; }
+  .overlay .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  .overlay .actions .save { background: #1d3a5c; border-color: var(--accent); }
+  .help .hsec { margin: 12px 0; font-size: 13px; line-height: 1.5; }
+  .help ul { margin: 4px 0; padding-left: 18px; }
+  .help li { margin: 3px 0; }
+  .help .k { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+  #btnHelp { width: 26px; padding: 4px 0; text-align: center; }
   .hint { color: var(--dim); font-size: 12px; }
   kbd { background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px;
     border-radius: 4px; padding: 0 5px; font-size: 11px; font-family: ui-monospace, monospace; }
@@ -139,6 +148,7 @@
   <span class="ep" id="epname">opace reviewer</span>
   <span class="stat" id="stat"></span>
   <span class="spacer"></span>
+  <button id="btnHelp" title="What does everything do?">?</button>
   <button id="btnLoadAnother" title="Load a different episode">Load…</button>
   <button id="btnCopy" title="Copy observations JSON to clipboard">Copy JSON</button>
   <button id="btnExport" title="Download review-notes.json">Export ⬇</button>
@@ -157,6 +167,7 @@
       <button data-flag="retime" data-cur="1" title="Right line, wrong time — seek to where it should start first">⏱ retime</button>
       <button data-flag="wrong" data-cur="1" title="Wrong line is shown here">≠ wrong</button>
       <button data-flag="note" data-cur="0" title="Free note at this moment (c)">✎ note@now</button>
+      <button data-flag="section" data-cur="0" title="A whole stretch has no subtitle">▭ no sub here</button>
     </div>
     <div id="obs">
       <h3>Observations (<span id="obscount">0</span>) — autosaved</h3>
@@ -190,26 +201,41 @@
   </div>
 </div>
 
-<div id="modal">
+<div id="modal" class="overlay">
   <div class="card">
     <h2 id="mTitle">Flag</h2>
     <div class="sub" id="mSub"></div>
-    <div class="field" id="mTimeField">
-      <label id="mTimeLabel">Timestamp</label>
-      <div class="timerow">
-        <input class="mono" id="mTime" />
-        <button id="mTimeNow" title="Use current playhead">⟲ now</button>
-        <span class="hint" id="mTimeHint"></span>
-      </div>
-    </div>
-    <div class="field">
-      <label>Note <span class="hint" id="mNoteHint"></span></label>
-      <textarea id="mNote" placeholder="What did you observe? (optional but helpful)"></textarea>
-    </div>
+    <div id="mFields"></div>
     <div class="actions">
       <button id="mCancel">Cancel</button>
-      <button class="save" id="mSave">Save</button>
+      <button class="save" id="mSave" title="ctrl/⌘+enter">Save</button>
     </div>
+  </div>
+</div>
+
+<div id="help" class="overlay">
+  <div class="card help">
+    <h2>What everything does</h2>
+    <div class="hsec"><b>The line list (right)</b> — every official line in order.
+      <ul>
+        <li><span class="mono" style="color:var(--accent)">blue time</span> = shown on screen; click the time or text to <b>seek</b> there. The playing line highlights and auto-scrolls (toggle <b>follow</b>).</li>
+        <li><span style="color:var(--dim)">grey, no time</span> = unplaced (not shown). When one falls in the gap you're watching it turns <span style="color:#c3b27a">amber (in&nbsp;gap)</span> — a "is this spoken here?" candidate.</li>
+        <li>method badge: <span class="m-pin mono">pin</span> human-placed · <span class="m-interp mono">interp</span> inferred (be skeptical) · <span class="m-rescue mono">rescue/part</span> fuzzy · <span class="mono">cover</span> heard.</li>
+        <li>click the <b>#number</b> (or double-click a row) to open its flag buttons.</li>
+      </ul>
+    </div>
+    <div class="hsec"><b>Flag buttons</b> — per row, or the bar under the video for the current line. Every flag is just a captured <i>observation</i>; nothing is auto-fixed.
+      <ul>
+        <li><span class="k exclude">✕ remove</span> — shown but shouldn't be (One Pace cut it).</li>
+        <li><span class="k missing">⚑ here</span> — an unplaced line <i>is</i> spoken now (records the time).</li>
+        <li><span class="k retime">⏱ retime</span> — right line, wrong time: set a new <b>start</b> and/or <b>end</b> (blank = keep).</li>
+        <li><span class="k wrong">≠ wrong</span> — wrong line shown; type what it <b>should be</b>.</li>
+        <li><span class="k note">✎ note</span> — anything else, tied to the moment.</li>
+        <li><span class="k note">▭ no sub here</span> (bar) — a whole stretch (from→to) has no subtitle.</li>
+      </ul>
+    </div>
+    <div class="hsec"><b>Keys</b> — <kbd>space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> 2s (<kbd>shift</kbd> 10s) · <kbd>,</kbd>/<kbd>.</kbd> 0.1s · <kbd>x</kbd> remove current · <kbd>c</kbd> note now. Subtitles are selectable — hover with Yomitan to look up words.</div>
+    <div class="actions"><button id="hClose">Got it</button></div>
   </div>
 </div>
 
@@ -363,7 +389,7 @@ $("#showUnplaced").onchange = buildList;
 function seek(t) { video.currentTime = Math.max(0, t); video.play(); }
 
 // ---- playback loop: overlay + current highlight + auditor gap --------------
-let lastCurN = -1;
+let lastCurN = -1, lastOvKey = "";
 function activeAt(t) {                 // emitted lines covering t
   return emitted.filter((l) => t >= l.start && t < l.end);
 }
@@ -379,12 +405,17 @@ function loop() {
   const t = video.currentTime;
   $("#nowtime").textContent = fmt(t);
 
-  // overlay
+  // overlay — only rebuilt when the active set changes, so a Yomitan
+  // selection isn't wiped every frame
   const act = activeAt(t);
   const pact = parts.filter((p) => t >= p.start && t < p.end);
-  const ov = $("#overlay"); ov.innerHTML = "";
-  for (const l of act) { const c = el("div", "cap"); c.textContent = cleanText(l.text); ov.appendChild(c); ov.appendChild(document.createElement("br")); }
-  for (const p of pact) { const c = el("div", "cap part"); c.textContent = cleanText(p.text); ov.appendChild(c); }
+  const ovKey = act.map((l) => l.n).join(",") + "|" + pact.map((p) => p.parent + ":" + p.start).join(",");
+  if (ovKey !== lastOvKey) {
+    const ov = $("#overlay"); ov.innerHTML = "";
+    for (const l of act) { const c = el("div", "cap"); c.textContent = cleanText(l.text); ov.appendChild(c); ov.appendChild(document.createElement("br")); }
+    for (const p of pact) { const c = el("div", "cap part"); c.textContent = cleanText(p.text); ov.appendChild(c); }
+    lastOvKey = ovKey;
+  }
 
   // flag bar current line
   const cur = act[act.length - 1] || null;
@@ -416,54 +447,98 @@ $("#list").addEventListener("pointerenter", () => listHover = true);
 $("#list").addEventListener("pointerleave", () => listHover = false);
 
 // ---- flagging modal --------------------------------------------------------
+// each kind declares its fields; the modal renders them dynamically. a note
+// textarea is always appended. fields with type "time" get a ⟲now button.
 const KINDS = {
-  exclude: { title: "Remove — shown but shouldn't be", needTime: false,
-    sub: (l) => `#${l.n} ${cleanText(l.text)}`, noteHint: "(why is it wrong here?)" },
-  missing: { title: "Missing — I hear this line here", needTime: true,
-    sub: (l) => `#${l.n} ${cleanText(l.text)}`, timeLabel: "Heard at",
-    timeHint: "moment you hear it start", noteHint: "(optional)" },
-  retime:  { title: "Retime — right line, wrong time", needTime: true,
-    sub: (l) => `#${l.n} ${cleanText(l.text)} (now at ${fmt(l.start)})`, timeLabel: "Should start at",
-    timeHint: "seek to the correct start, then ⟲ now", noteHint: "(optional)" },
-  wrong:   { title: "Wrong line shown here", needTime: false,
-    sub: (l) => `#${l.n} ${cleanText(l.text)}`, noteHint: "what should it be instead?" },
-  note:    { title: "Note at this moment", needTime: true,
-    sub: (l) => l ? `near #${l.n} ${cleanText(l.text)}` : "(not tied to a line)",
-    timeLabel: "At", timeHint: "", noteHint: "" },
+  exclude: { title: "Remove — shown but shouldn't be",
+    sub: (l) => `#${l.n}  ${cleanText(l.text)}`, fields: [], note: "(why is it wrong here?)" },
+  missing: { title: "Missing — I hear this line here",
+    sub: (l) => `#${l.n}  ${cleanText(l.text)}`,
+    fields: [{ key: "at", type: "time", label: "Heard at", def: "now" }], note: "(optional)" },
+  retime: { title: "Retime — right line, wrong time",
+    sub: (l) => `#${l.n}  ${cleanText(l.text)}  (now ${fmt(l.start)}–${fmt(l.end)})`,
+    fields: [
+      { key: "start", type: "time", label: "New start (blank = keep)", def: "start" },
+      { key: "end", type: "time", label: "New end (blank = keep)", def: "end" },
+    ], note: "(optional)" },
+  wrong: { title: "Wrong line shown here",
+    sub: (l) => `#${l.n}  ${cleanText(l.text)}`,
+    fields: [{ key: "shouldBe", type: "text", label: "Should be", ph: "the correct line (its # or text)" }],
+    note: "(optional)" },
+  section: { title: "No subtitle across this stretch",
+    sub: () => "which scene is missing its sub?",
+    fields: [
+      { key: "from", type: "time", label: "From", def: "now" },
+      { key: "to", type: "time", label: "To", def: "now" },
+    ], note: "what scene / which characters?" },
+  note: { title: "Note at this moment",
+    sub: (l) => (l ? `near #${l.n}  ${cleanText(l.text)}` : "(not tied to a line)"),
+    fields: [{ key: "at", type: "time", label: "At", def: "now" }], note: "" },
 };
 let pending = null;
+function fieldDefault(def, line) {
+  if (def === "now") return video.currentTime;
+  if (def === "start") return line && line.start != null ? line.start : null;
+  if (def === "end") return line && line.end != null ? line.end : null;
+  return null;
+}
 function openFlag(kind, line) {
   const k = KINDS[kind];
   pending = { kind, line };
   $("#mTitle").textContent = k.title;
   $("#mSub").textContent = k.sub(line);
-  $("#mTimeField").style.display = k.needTime ? "" : "none";
-  $("#mTimeLabel").textContent = k.timeLabel || "Timestamp";
-  $("#mTimeHint").textContent = k.timeHint || "";
-  $("#mNoteHint").textContent = k.noteHint || "";
-  $("#mTime").value = fmt(video.currentTime);
-  $("#mNote").value = "";
+  const box = $("#mFields"); box.innerHTML = "";
+  for (const f of k.fields) {
+    const wrap = el("div", "field");
+    wrap.appendChild(el("label", null, f.label));
+    if (f.type === "time") {
+      const row = el("div", "timerow");
+      const inp = el("input", "mono"); inp.id = "mf_" + f.key;
+      const dv = fieldDefault(f.def, line); inp.value = dv != null ? fmt(dv) : "";
+      const now = el("button", null, "⟲ now"); now.type = "button";
+      now.onclick = () => (inp.value = fmt(video.currentTime));
+      row.appendChild(inp); row.appendChild(now); wrap.appendChild(row);
+    } else {
+      const inp = el("input"); inp.type = "text"; inp.id = "mf_" + f.key;
+      if (f.ph) inp.placeholder = f.ph;
+      wrap.appendChild(inp);
+    }
+    box.appendChild(wrap);
+  }
+  const nf = el("div", "field");
+  const nl = el("label", null, "Note "); nl.appendChild(el("span", "hint", k.note || ""));
+  nf.appendChild(nl);
+  const ta = el("textarea"); ta.id = "mf_note"; ta.placeholder = "What did you observe?";
+  nf.appendChild(ta); box.appendChild(nf);
   $("#modal").classList.add("show");
-  setTimeout(() => (k.needTime ? $("#mTime") : $("#mNote")).focus(), 30);
+  const first = k.fields[0] ? $("#mf_" + k.fields[0].key) : $("#mf_note");
+  setTimeout(() => first.focus(), 30);
 }
-$("#mTimeNow").onclick = () => $("#mTime").value = fmt(video.currentTime);
 $("#mCancel").onclick = () => $("#modal").classList.remove("show");
 $("#modal").onclick = (e) => { if (e.target === $("#modal")) $("#mCancel").onclick(); };
 $("#mSave").onclick = () => {
   const k = KINDS[pending.kind], l = pending.line;
-  const ob = {
-    id: nextId(), kind: pending.kind,
+  const ob = { id: nextId(), kind: pending.kind,
     n: l ? l.n : null, text: l ? l.text : null,
-    shownStart: l && l.emitted ? l.start : null,
-    method: l ? l.method : null,
-    note: $("#mNote").value.trim() || null,
-  };
-  if (k.needTime) ob.at = parseTime($("#mTime").value);
-  observations.push(ob);
-  saveObservations(); renderObs();
+    shownStart: l && l.emitted ? l.start : null, method: l ? l.method : null };
+  for (const f of k.fields) {
+    const raw = $("#mf_" + f.key).value.trim();
+    if (!raw) continue;
+    ob[f.key] = f.type === "time" ? parseTime(raw) : raw;
+  }
+  const note = $("#mf_note").value.trim(); if (note) ob.note = note;
+  const need = { missing: ["at"], section: ["from", "to"] }[pending.kind];
+  if (need && need.some((kk) => ob[kk] == null)) { alert("Please fill: " + need.join(", ")); return; }
+  if (pending.kind === "retime" && ob.start == null && ob.end == null) { alert("Set a new start and/or end"); return; }
+  observations.push(ob); saveObservations(); renderObs();
   $("#modal").classList.remove("show");
 };
 let _id = 0; function nextId() { return ++_id; }
+
+// help overlay
+$("#btnHelp").onclick = () => $("#help").classList.add("show");
+$("#hClose").onclick = () => $("#help").classList.remove("show");
+$("#help").onclick = (e) => { if (e.target === $("#help")) $("#help").classList.remove("show"); };
 
 // flag bar buttons
 $("#flagbar").querySelectorAll("button[data-flag]").forEach((b) => b.onclick = () => {
@@ -475,11 +550,19 @@ $("#flagbar").querySelectorAll("button[data-flag]").forEach((b) => b.onclick = (
 });
 
 // ---- observations render + persistence -------------------------------------
+function obTime(o) { return o.at ?? o.start ?? o.from ?? o.shownStart ?? 0; }
+function obDetail(ob) {
+  if (ob.kind === "retime")
+    return "→ " + [ob.start != null ? "start " + fmt(ob.start) : null,
+                   ob.end != null ? "end " + fmt(ob.end) : null].filter(Boolean).join(", ");
+  if (ob.kind === "section") return "→ no sub " + fmt(ob.from) + "–" + fmt(ob.to);
+  if (ob.kind === "wrong" && ob.shouldBe) return "→ should be: " + ob.shouldBe;
+  return "";
+}
 function renderObs() {
-  observations.sort((a, b) => (a.at ?? a.shownStart ?? 0) - (b.at ?? b.shownStart ?? 0));
+  observations.sort((a, b) => obTime(a) - obTime(b));
   const box = $("#oblist"); box.innerHTML = "";
   $("#obscount").textContent = observations.length;
-  // mark flagged rows
   document.querySelectorAll(".row.flagged").forEach((r) => r.classList.remove("flagged"));
   for (const ob of observations) {
     if (ob.n != null && rowEls[ob.n]) rowEls[ob.n].classList.add("flagged");
@@ -487,17 +570,16 @@ function renderObs() {
     row.appendChild(el("span", "k " + ob.kind, ob.kind));
     const body = el("div", "body");
     const t = el("div", "t");
-    const when = ob.at != null ? fmt(ob.at) : (ob.shownStart != null ? fmt(ob.shownStart) : "");
-    t.innerHTML = `<span class="mono ref">${when}${ob.n != null ? " · #" + ob.n : ""}</span> ` +
+    t.innerHTML = `<span class="mono ref">${fmt(obTime(ob))}${ob.n != null ? " · #" + ob.n : ""}</span> ` +
       (ob.text ? cleanText(ob.text).replace(/\n/g, " ⏎ ") : "");
     body.appendChild(t);
+    const det = obDetail(ob); if (det) body.appendChild(el("div", "ref", det));
     if (ob.note) body.appendChild(el("div", "note", "↳ " + ob.note));
     row.appendChild(body);
     const del = el("button", "del", "✕"); del.title = "delete";
     del.onclick = () => { observations = observations.filter((o) => o !== ob); saveObservations(); renderObs(); };
     row.appendChild(del);
-    // click jumps to it
-    if (when) t.style.cursor = "pointer", t.onclick = () => seek(ob.at ?? ob.shownStart);
+    t.style.cursor = "pointer"; t.onclick = () => seek(obTime(ob));
     box.appendChild(row);
   }
 }
@@ -532,6 +614,7 @@ $("#btnCopy").onclick = async () => {
 
 // ---- keyboard --------------------------------------------------------------
 document.addEventListener("keydown", (e) => {
+  if ($("#help").classList.contains("show")) { if (e.key === "Escape") $("#hClose").onclick(); return; }
   if ($("#modal").classList.contains("show")) {
     if (e.key === "Escape") $("#mCancel").onclick();
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("#mSave").onclick();

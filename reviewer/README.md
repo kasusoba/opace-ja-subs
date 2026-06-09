@@ -21,14 +21,19 @@ free note) and exports them as a list for a human to judge into the right fix
    - **unplaced** lines (greyed) — and when one falls in the gap you're currently
      watching, it lights up (`in gap`) as a "is this spoken here?" candidate. This
      is the auditor: it catches missing lines you'd otherwise have to notice by ear.
-5. Flag issues with the buttons (per row, or the bar under the video):
+5. Flag issues with the buttons (per row, or the bar under the video). Each is
+   just a captured *observation* — nothing is auto-fixed. The **?** button opens
+   the same reference in-app.
    | Button | Meaning |
    |---|---|
    | ✕ remove | shown but shouldn't be (One Pace cut it) |
    | ⚑ I hear it here | an unplaced line *is* spoken at this moment |
-   | ⏱ retime | right line, wrong time — seek to the correct start first |
-   | ≠ wrong | the wrong line is shown here (say what it should be in the note) |
+   | ⏱ retime | right line, wrong time — set a new start and/or end (blank = keep) |
+   | ≠ wrong | wrong line shown — type what it should be |
    | ✎ note | anything else, tied to the moment |
+   | ▭ no sub here | a whole stretch (from → to) has no subtitle |
+
+   Subtitles on the video are **selectable** — hover with Yomitan to look up words.
 6. When the episode's done, **Export** (or **Copy JSON**) and send the
    `…​.review-notes.json` over. Observations autosave to the browser as you go,
    so closing the tab doesn't lose them.
@@ -47,17 +52,23 @@ In the flag dialog: <kbd>esc</kbd> cancel, <kbd>ctrl/⌘ + enter</kbd> save.
   "episode": "[One Pace][19-21] Orange Town 03 …",
   "video": "….mkv",
   "observations": [
-    { "kind": "missing", "n": 206, "text": "ハーッ…", "at": 671.3, "note": null },
-    { "kind": "retime",  "n": 82,  "text": "シュシュ？", "at": 238.0,
-      "shownStart": 235.98, "note": "barking smeared the onset" },
-    { "kind": "exclude", "n": 438, "text": "よーし\\N曲芸ショーを見せてやれ", "note": null }
+    { "kind": "missing", "n": 206, "text": "ハーッ…", "at": 671.3 },
+    { "kind": "retime",  "n": 82,  "text": "シュシュ？", "shownStart": 235.98,
+      "start": 238.0, "note": "barking smeared the onset" },
+    { "kind": "retime",  "n": 624, "text": "クソーッ…", "shownStart": 1898.3, "end": 1903.0 },
+    { "kind": "wrong",   "n": 50,  "text": "あいー あいあいあい", "shownStart": 147.8,
+      "shouldBe": "あっ 犬！ ヘヘッ (line 49)" },
+    { "kind": "section", "from": 1052.0, "to": 1098.0, "note": "Buggy crew fight — no subs at all" },
+    { "kind": "exclude", "n": 438, "text": "よーし\\N曲芸ショーを見せてやれ" }
   ]
 }
 ```
 
-`at` = the timestamp you flagged (heard-at, or the corrected start for retime).
-`n`/`text` reference the official line. The judge turns each observation into the
-appropriate `excludes.txt`/`pins.txt` entry or code change.
+Time fields: `at` (heard-at / note moment), `start`/`end` (retime — either or both),
+`from`/`to` (section span). `shownStart` is where the line currently sits, for
+reference. `n`/`text` point at the official line; `shouldBe` names the correct one.
+The judge turns each observation into the appropriate `excludes.txt`/`pins.txt`
+entry, a retime, or a code change.
 
 ## Notes
 
