@@ -28,7 +28,7 @@ free note) and exports them as a list for a human to judge into the right fix
    |---|---|
    | ✕ remove | shown but shouldn't be (One Pace cut it) |
    | ⚑ I hear it here | an unplaced line *is* spoken at this moment |
-   | ⏱ retime | right line, wrong time — set a new start and/or end (blank = keep) |
+   | ⏱ retime | right line, wrong time (e.g. One Pace trimmed it) — drag the start/end **tips** on the slider (video scrubs as you drag) or type a new start/end |
    | ≠ wrong | wrong line shown — type what it should be |
    | ✎ note | anything else, tied to the moment |
    | ▭ no sub here | a whole stretch (from → to) has no subtitle |

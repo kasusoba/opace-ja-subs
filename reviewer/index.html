@@ -144,6 +144,20 @@
   .overlay .timerow input { width: 120px; }
   .overlay .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
   .overlay .actions .save { background: #1d3a5c; border-color: var(--accent); }
+  /* top-align (and let clicks fall through the dimmer) so the video stays
+     visible/scrubbable behind the dialog while dragging the range handles */
+  .overlay.top { align-items: flex-start; background: rgba(0,0,0,.25); }
+  .overlay.top .card { margin-top: 18px; }
+  /* dual-handle range slider */
+  .rslider { position: relative; height: 40px; margin: 14px 4px 2px; touch-action: none; }
+  .rslider .track { position: absolute; top: 18px; left: 0; right: 0; height: 6px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+  .rslider .fill { position: absolute; top: 18px; height: 6px; background: #2c5a8c; border-radius: 4px; }
+  .rslider .handle { position: absolute; top: 10px; width: 14px; height: 22px; margin-left: -7px;
+    background: var(--accent); border-radius: 4px; cursor: ew-resize; box-shadow: 0 1px 3px #000; }
+  .rslider .handle.b { background: var(--accent2); }
+  .rslider .lab { position: absolute; top: -4px; font-size: 10px; transform: translateX(-50%);
+    white-space: nowrap; color: var(--fg); }
   .help .hsec { margin: 12px 0; font-size: 13px; line-height: 1.5; }
   .help ul { margin: 4px 0; padding-left: 18px; }
   .help li { margin: 3px 0; }
@@ -275,7 +289,7 @@
       <ul>
         <li><span class="k exclude">✕ remove</span> — shown but shouldn't be (One Pace cut it).</li>
         <li><span class="k missing">⚑ here</span> — an unplaced line <i>is</i> spoken now (records the time).</li>
-        <li><span class="k retime">⏱ retime</span> — right line, wrong time: set a new <b>start</b> and/or <b>end</b> (blank = keep).</li>
+        <li><span class="k retime">⏱ retime</span> — right line, wrong time (e.g. One Pace trimmed it): drag the start/end <b>tips</b> on the slider (the video scrubs as you drag) or type a new <b>start</b>/<b>end</b> (blank = keep).</li>
         <li><span class="k wrong">≠ wrong</span> — wrong line shown; type what it <b>should be</b>.</li>
         <li><span class="k note">✎ note</span> — anything else, tied to the moment.</li>
         <li><span class="k note">▭ no sub here</span> (bar) — a whole stretch (from→to) has no subtitle.</li>
@@ -588,9 +602,71 @@ function openFlag(kind, line) {
   nf.appendChild(nl);
   const ta = el("textarea"); ta.id = "mf_note"; ta.placeholder = "What did you observe?";
   nf.appendChild(ta); box.appendChild(nf);
+  // two time fields (retime start/end, section from/to) get a dual-handle slider
+  const tfields = k.fields.filter((f) => f.type === "time");
+  $("#modal").classList.toggle("top", tfields.length >= 2);
+  if (tfields.length >= 2) buildRangeSlider(box, tfields[0].key, tfields[1].key);
   $("#modal").classList.add("show");
   const first = k.fields[0] ? $("#mf_" + k.fields[0].key) : $("#mf_note");
   setTimeout(() => first.focus(), 30);
+}
+// drag the start/end tips; the video scrubs to each handle so you can see the
+// real boundary. Stays synced with the numeric inputs (which still take typing).
+function buildRangeSlider(box, ka, kb) {
+  const inA = $("#mf_" + ka), inB = $("#mf_" + kb);
+  const wrap = el("div", "field");
+  wrap.appendChild(el("label", null, "Drag the tips — video scrubs as you drag"));
+  const sl = el("div", "rslider");
+  const track = el("div", "track"), fill = el("div", "fill");
+  const hA = el("div", "handle a"), hB = el("div", "handle b");
+  const lA = el("div", "lab"), lB = el("div", "lab");
+  sl.append(track, fill, hA, hB, lA, lB);
+  wrap.appendChild(sl);
+  box.insertBefore(wrap, box.firstChild);
+
+  let w0 = 0, w1 = 1;
+  function setWindow() {
+    const a = parseTime(inA.value), b = parseTime(inB.value);
+    const vals = [a, b].filter((v) => v != null);
+    const lo = vals.length ? Math.min(...vals) : video.currentTime;
+    const hi = vals.length ? Math.max(...vals) : video.currentTime;
+    w0 = Math.max(0, lo - 8); w1 = hi + 8;
+    if (w1 - w0 < 6) w1 = w0 + 6;
+  }
+  const pct = (t) => ((t - w0) / (w1 - w0)) * 100;
+  function place(h, lab, val, name) {
+    if (val == null) { h.style.display = "none"; lab.style.display = "none"; return; }
+    h.style.display = lab.style.display = "";
+    h.style.left = pct(val) + "%"; lab.style.left = pct(val) + "%";
+    lab.textContent = name + " " + fmt(val);
+  }
+  function layout() {
+    const a = parseTime(inA.value), b = parseTime(inB.value);
+    if ((a != null && (a < w0 || a > w1)) || (b != null && (b < w0 || b > w1))) setWindow();
+    place(hA, lA, a, "start"); place(hB, lB, b, "end");
+    if (a != null && b != null) {
+      fill.style.display = ""; fill.style.left = pct(Math.min(a, b)) + "%";
+      fill.style.width = Math.abs(pct(b) - pct(a)) + "%";
+    } else fill.style.display = "none";
+  }
+  setWindow(); layout();
+  inA.addEventListener("input", layout); inB.addEventListener("input", layout);
+  function drag(handle, input) {
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); handle.setPointerCapture(e.pointerId);
+      const move = (ev) => {
+        const r = track.getBoundingClientRect();
+        const p = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+        const t = w0 + p * (w1 - w0);
+        input.value = fmt(t);
+        if (!isNaN(video.duration)) video.currentTime = t;
+        layout();
+      };
+      const up = () => { handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up); };
+      handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", up);
+    });
+  }
+  drag(hA, inA); drag(hB, inB);
 }
 $("#mCancel").onclick = () => $("#modal").classList.remove("show");
 $("#modal").onclick = (e) => { if (e.target === $("#modal")) $("#mCancel").onclick(); };
