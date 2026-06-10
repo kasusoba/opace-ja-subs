@@ -1,0 +1,14 @@
+# One Pace ASR bridge dependencies.
+# Setup:  python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+# Also needs ffmpeg on PATH (macOS: brew install ffmpeg).
+
+faster-whisper    # ASR: Japanese transcription with word timestamps
+rapidfuzz         # fuzzy string scoring for line rescue/interpolation
+pysubs2           # read/write .ass/.srt/.vtt subtitle files
+fugashi           # MeCab wrapper: kanji/kana -> hiragana readings for matching
+unidic-lite       # the MeCab dictionary fugashi reads from
+
+# Optional GPU/Linux-only extras (not needed on Apple Silicon / CPU):
+#   nvidia-cublas-cu12   # CUDA BLAS, preloaded by the script when present
+#   nvidia-cudnn-cu12    # CUDA DNN primitives for faster-whisper
+#   audio-separator[gpu] # --separate vocal isolation (needs python3-dev)

@@ -75,14 +75,29 @@ Two things worth being precise about:
 
 ## Setup
 
-Requirements: Python 3.10+, `ffmpeg` on PATH, and ideally an NVIDIA GPU
-(CPU works, ~10× slower).
+Requirements: Python 3.10+, `ffmpeg` on PATH (macOS: `brew install ffmpeg`), and
+ideally an NVIDIA GPU (CPU works, ~10× slower).
+
+The Python dependencies live in `requirements.txt`. Create an isolated virtual
+environment for the project and install them into it:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install faster-whisper rapidfuzz pysubs2 fugashi unidic-lite
-pip install nvidia-cublas-cu12 nvidia-cudnn-cu12   # GPU only
+python -m venv .venv             # create the .venv/ folder (once)
+source .venv/bin/activate        # enter it — prompt shows (.venv)
+pip install -r requirements.txt  # install the deps into it
 ```
+
+After that, just activate the venv whenever you work on the project; if the
+script errors with `ModuleNotFoundError`, you forgot to activate it:
+
+```bash
+source .venv/bin/activate        # before each session
+deactivate                       # when you're done
+```
+
+The `.venv/` folder is machine-specific and git-ignored — never commit it; rebuild
+it with the three commands above. GPU users also want the CUDA libs (commented at
+the bottom of `requirements.txt`); on Apple Silicon / CPU they're unnecessary.
 
 ## Use
 
