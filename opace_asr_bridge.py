@@ -702,8 +702,6 @@ def process(a, onepace, jasubs, outdir):
         scale = opw / vtw
         # the gap's ASR text (even garbled, ASR usually heard SOMETHING of a real
         # line; a cut boundary's gap contains different dialogue instead)
-        import bisect
-
         ai0 = bisect.bisect_left(asr_t0, op0)
         ai1 = bisect.bisect_right(asr_t0, op1)
         gap_txt = asr_str[ai0:ai1]
@@ -1033,7 +1031,6 @@ def process(a, onepace, jasubs, outdir):
     # (e.g. a short line matching ED song lyrics). Runs AFTER dedupe so deleted
     # duplicate claims can't pose as neighbors.
     kept_lis = sorted(e[5] for e in kept if e[5] is not None)
-    import bisect as _bi
 
     final = []
     dropped_islands = 0
@@ -1043,7 +1040,7 @@ def process(a, onepace, jasubs, outdir):
         )
         idx_near = True
         if ev[5] is not None:
-            j = _bi.bisect_left(kept_lis, ev[5])
+            j = bisect.bisect_left(kept_lis, ev[5])
             idx_near = (j > 0 and ev[5] - kept_lis[j - 1] <= 3) or (
                 j + 1 < len(kept_lis) and kept_lis[j + 1] - ev[5] <= 3
             )
