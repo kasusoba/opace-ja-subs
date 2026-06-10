@@ -7,10 +7,12 @@
 # regenerable caches
 work/
 
-# regenerable per-episode trace artifacts (the .ja.ass deliverable, .vtt sources
-# and override files are tracked; these two are just rebuilt by a run)
+# regenerable per-episode trace artifact (the .ja.ass deliverable, .vtt sources
+# and override files are tracked; this one is just rebuilt by a run).
+# NB: .ja.ass.review.json IS tracked -- you review on a different machine than you
+# process on, and rebuilding it otherwise needs the video + a transcribe pass.
+# See --rebuild-review to regenerate it offline from an existing .ja.ass.
 *.ja.ass.debug.tsv
-*.ja.ass.review.json
 
 # local tooling
 .venv/

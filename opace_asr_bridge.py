@@ -158,6 +158,99 @@ def to_wav(src, dst):  # 16k mono wav; skip if already extracted
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def load_official_lines(jasubs):
+    """Parse the official subs into the canonical line list -- the single source of
+    truth for line indices (n), shared by the matcher and the --rebuild-review path.
+    Returns (lines, off_str, dropped_dups) where each line is
+    (display_text, norm_start, norm_end, vtt_start_s, vtt_end_s) and off_str is the
+    concatenated normalized readings (line[i] spans off_str[norm_start:norm_end])."""
+    lines = []
+    off_parts = []
+    pos = 0
+    dropped_dups = 0
+    recent = []  # (norm, vtt_start) of recently kept lines
+    for js in jasubs:
+        subs = pysubs2.load(js)
+        for ev in subs:
+            if ev.is_comment:
+                continue
+            disp = clean_ja(ev.text)
+            n = norm(disp)
+            if not disp or len(n) < 2:
+                continue
+            vs = ev.start / 1000.0
+            if any(rn == n and vs - rt < 6.0 for rn, rt in recent):
+                dropped_dups += 1
+                continue
+            recent = [(rn, rt) for rn, rt in recent if vs - rt < 6.0][-4:] + [(n, vs)]
+            lines.append((disp, pos, pos + len(n), vs, ev.end / 1000.0))
+            off_parts.append(n)
+            pos += len(n)
+    return lines, "".join(off_parts), dropped_dups
+
+
+def rebuild_review(onepace, jasubs, outdir):
+    """Regenerate the <video>.ja.ass.review.json sidecar from an existing .ja.ass +
+    the official subs, WITHOUT transcription. Emitted timing is recovered by matching
+    each deliverable cue back to its line index by normalized reading, in playback
+    order (so duplicate lines map in sequence). The matcher-only hints are
+    unavailable offline: method is null and parts is empty. Works from a RAW .ja.ass;
+    cues whose text was rewritten by baked review-notes (trim/wrong) won't match and
+    read as unplaced. Returns the emitted-line count, or None if there's no .ja.ass."""
+    import json as _json
+    from collections import defaultdict
+
+    # Find the existing deliverable by extension, NOT by video stem: the local
+    # watch-video is often a different encode than the file processed elsewhere
+    # ([...En Sub][131AFBBA].mp4 vs the [...0433686D].ja.ass off another machine).
+    asses = sorted(f for f in os.listdir(outdir) if f.endswith(".ja.ass"))
+    if not asses:
+        print(f"  no .ja.ass in {outdir} to rebuild from -- run a normal pass first")
+        return None
+    stem = os.path.splitext(os.path.basename(onepace))[0]
+    pick = next((f for f in asses if f == stem + ".ja.ass"), asses[0])
+    if len(asses) > 1:
+        print(f"  {len(asses)} .ja.ass files present; using {pick}")
+    dst = os.path.join(outdir, pick)
+    lines, _off, dropped_dups = load_official_lines(jasubs)
+    by_norm = defaultdict(list)  # norm reading -> line indices, in playback order
+    for li, (disp, p0, p1, vs, ve) in enumerate(lines):
+        by_norm[norm(disp)].append(li)
+    raw_times = {}
+    unmatched = 0
+    for ev in sorted(pysubs2.load(dst), key=lambda e: e.start):
+        if ev.is_comment:
+            continue
+        cand = by_norm.get(norm(clean_ja(ev.text)))
+        if cand:
+            raw_times[cand.pop(0)] = (ev.start / 1000.0, ev.end / 1000.0)
+        else:
+            unmatched += 1
+    review = {"episode": stem, "video": os.path.basename(onepace), "lines": [], "parts": []}
+    for li, (disp, p0, p1, vs, ve) in enumerate(lines):
+        rt = raw_times.get(li)
+        review["lines"].append({
+            "n": li,
+            "text": disp,
+            "method": None,  # matcher-only; unavailable without a transcript
+            "start": round(rt[0], 3) if rt else None,
+            "end": round(rt[1], 3) if rt else None,
+            "vtt": round(vs, 3),
+            "vdur": round(ve - vs, 3),
+            "emitted": rt is not None,
+        })
+    with open(dst + ".review.json", "w", encoding="utf-8") as f:
+        _json.dump(review, f, ensure_ascii=False)
+    n_emit = len(raw_times)
+    print(f"  rebuilt {os.path.basename(dst)}.review.json: {n_emit}/{len(lines)} lines "
+          f"emitted (method/parts hints unavailable without a transcript)")
+    if unmatched:
+        print(f"  note: {unmatched} cue(s) couldn't be tied to a line offline "
+              f"(rollup-deduped duplicate text, or baked review-notes) and are "
+              f"absent from the sidecar; rerun a normal pass for a faithful one")
+    return n_emit
+
+
 def process(a, onepace, jasubs, outdir):
     """Align one episode: returns (placed, total_lines, dialogue_gap_count)."""
     os.makedirs(outdir, exist_ok=True)
@@ -346,29 +439,7 @@ def process(a, onepace, jasubs, outdir):
     # 3) official JA lines -> one normalized char stream with line boundaries.
     #    Netflix CC rolls up: the same cue text repeats at near-identical times --
     #    dedupe, or every copy lands on the same audio as a stack of duplicates.
-    lines = []  # (display_text, norm_start, norm_end, vtt_start_s, vtt_end_s)
-    off_parts = []
-    pos = 0
-    dropped_dups = 0
-    recent = []  # (norm, vtt_start) of recently kept lines
-    for js in jasubs:
-        subs = pysubs2.load(js)
-        for ev in subs:
-            if ev.is_comment:
-                continue
-            disp = clean_ja(ev.text)
-            n = norm(disp)
-            if not disp or len(n) < 2:
-                continue
-            vs = ev.start / 1000.0
-            if any(rn == n and vs - rt < 6.0 for rn, rt in recent):
-                dropped_dups += 1
-                continue
-            recent = [(rn, rt) for rn, rt in recent if vs - rt < 6.0][-4:] + [(n, vs)]
-            lines.append((disp, pos, pos + len(n), vs, ev.end / 1000.0))
-            off_parts.append(n)
-            pos += len(n)
-    off_str = "".join(off_parts)
+    lines, off_str, dropped_dups = load_official_lines(jasubs)
     if dropped_dups:
         print(f"  ({dropped_dups} rollup-duplicate cues dropped)")
     print(f"  {len(lines)} official lines ({len(off_str)} chars) from {len(jasubs)} file(s)")
@@ -1270,6 +1341,11 @@ def main():
     ap.add_argument("--redo", "--force", dest="redo", action="store_true",
                     help="reprocess episodes that already have a .ja.ass (re-applies "
                          "excludes.txt/pins.txt/review-notes.json; transcription is cached)")
+    ap.add_argument("--rebuild-review", dest="rebuild_review", action="store_true",
+                    help="regenerate the .ja.ass.review.json sidecar from an existing "
+                         ".ja.ass + subs WITHOUT transcribing (for reviewing on a machine "
+                         "that never ran the matcher); method/parts confidence hints are "
+                         "unavailable offline")
     ap.add_argument(
         "--delete-video",
         action="store_true",
@@ -1288,7 +1364,11 @@ def main():
     if a.onepace:  # explicit single-episode mode
         if not a.jasub:
             ap.error("--onepace requires --jasub")
-        process(a, a.onepace, a.jasub, a.outdir or os.path.dirname(a.onepace) or ".")
+        outdir = a.outdir or os.path.dirname(a.onepace) or "."
+        if a.rebuild_review:
+            rebuild_review(a.onepace, a.jasub, outdir)
+        else:
+            process(a, a.onepace, a.jasub, outdir)
         return
     if not a.paths:
         ap.error("give episode/arc folder(s), or use --onepace/--jasub")
@@ -1329,6 +1409,15 @@ def main():
     for d, video, subs in episodes:
         name = os.path.relpath(d)
         done = os.path.splitext(video)[0] + ".ja.ass"
+        if a.rebuild_review:
+            print(f"\n=== {name}: rebuilding review sidecar ===")
+            try:
+                n_emit = rebuild_review(video, subs, d)
+                summary.append((name, "no .ja.ass (run a normal pass first)"
+                                if n_emit is None else f"review.json rebuilt ({n_emit} emitted)"))
+            except Exception as e:
+                summary.append((name, f"FAILED: {e}"))
+            continue
         if os.path.exists(done) and not a.redo:
             summary.append((name, "skipped (done; --redo to reprocess)"))
             continue

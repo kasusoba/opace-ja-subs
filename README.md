@@ -177,6 +177,18 @@ drop the `…​.review-notes.json` back in the episode folder, and re-run with
 Notes that need judgement (a missing source file, a structural fix) are decided
 from the list. See [reviewer/README.md](reviewer/README.md).
 
+The `…​.ja.ass.review.json` sidecar is committed to git, so you can review on a
+different machine than you processed on. If it's ever missing (older episode, lost
+file), regenerate it from the existing `.ja.ass` without re-transcribing:
+
+```bash
+python opace_asr_bridge.py "inputs/.../episode folder" --rebuild-review
+```
+
+This reconstructs the sidecar offline; the only thing lost is the per-line
+confidence hint (`method`/`parts`), which is nice-to-have for reviewing, not
+required. A full `--redo` pass restores those.
+
 ## Fix a wrong line
 
 - `<video>.ja.ass.debug.tsv` lists every official line with its placement method and
