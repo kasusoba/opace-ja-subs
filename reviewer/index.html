@@ -200,6 +200,8 @@
     z-index: 40; opacity: 0; transition: opacity .15s; pointer-events: none; }
   #toast.show { opacity: 1; }
   #nowtime { cursor: pointer; }
+  #focusind { color: var(--accent); font-size: 12px; cursor: pointer; white-space: nowrap; }
+  #focusind:empty { display: none; }
   .hint { color: var(--dim); font-size: 12px; }
   kbd { background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px;
     border-radius: 4px; padding: 0 5px; font-size: 11px; font-family: ui-monospace, monospace; }
@@ -234,6 +236,7 @@
       <button data-flag="wrong" data-cur="1" title="Wrong line is shown here">≠ wrong</button>
       <button data-flag="note" data-cur="0" title="Free note at this moment (c)">✎ note@now</button>
       <button data-flag="section" data-cur="0" title="A whole stretch has no subtitle">▭ no sub here</button>
+      <span id="focusind" title="i/o (mark in/out) target — click to release"></span>
     </div>
   </div>
 
@@ -1105,6 +1108,7 @@ const HANDLERS = {
   markIn: () => timeFocused("start"),
   markOut: () => timeFocused("end"),
 };
+// click the indicator to release focus (i/o then fall back to the playing line)
 
 // "Time this line" = mark in/out. Focus a line (click any row), then set its
 // start/end to the playhead. One retime note per line, UPDATED in place (not a
@@ -1113,7 +1117,8 @@ let focusN = null;
 function setFocus(n) {
   focusN = n;
   document.querySelectorAll(".row.focus").forEach((r) => r.classList.remove("focus"));
-  if (rowEls[n]) rowEls[n].classList.add("focus");
+  if (n != null && rowEls[n]) rowEls[n].classList.add("focus");
+  $("#focusind").textContent = n == null ? "" : `◎ i/o → #${n}  ✕`;
 }
 function timeFocused(field) {
   let n = focusN;
@@ -1132,6 +1137,7 @@ function timeFocused(field) {
   if (rowEls[n] && $("#follow").checked && !listHover) rowEls[n].scrollIntoView({ block: "center" });
   toast(`#${n} ${field === "start" ? "in" : "out"} → ${fmt(video.currentTime)}`);
 }
+$("#focusind").onclick = () => setFocus(null);
 const normKey = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
 const MODKEYS = ["Shift", "Control", "Alt", "Meta"];
 function actionForKey(k) { for (const id in binds) if (binds[id] === k) return id; return null; }
