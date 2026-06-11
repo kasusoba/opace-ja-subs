@@ -1113,47 +1113,70 @@ def process(a, onepace, jasubs, outdir):
         if not obs:
             return final
         dur_of = lambda n: min(max(lines[n][4] - lines[n][3], MIN_DUR), 7.0)
+        clean = lambda t: t.replace("\\N", " ").strip()
+
+        # consolidate every note about a line into a single intent, so that
+        # missing+retime+trim on the same line resolve to ONE event (not three).
+        intent = {}  # n -> {remove, place, start, end, text}
+        get = lambda n: intent.setdefault(n, {})
+        for ob in obs:
+            n, k = ob.get("n"), ob.get("kind")
+            if n is None:
+                continue
+            if k == "exclude":
+                get(n)["remove"] = True
+            elif k == "wrong":
+                get(n)["remove"] = True
+                m = _re.match(r"#(\d+)", ob.get("shouldBe") or "")
+                if m and ob.get("at") is not None:
+                    d = get(int(m.group(1))); d["place"] = True; d.setdefault("start", ob["at"])
+            elif k == "trim" and ob.get("keep"):
+                d = get(n); d["text"] = ob["keep"]
+                if ob.get("shownStart") is not None:
+                    d["place"] = True; d.setdefault("start", ob["shownStart"])
+            elif k == "retime":
+                d = get(n)
+                if ob.get("start") is not None: d["start"] = ob["start"]; d["place"] = True
+                if ob.get("end") is not None: d["end"] = ob["end"]; d["place"] = True
+            elif k == "missing" and ob.get("at") is not None:
+                d = get(n); d["place"] = True; d["start"] = ob["at"]
+
         by_n = {}
         for ev in final:
             if ev[3] is not None:
                 by_n.setdefault(ev[3], []).append(ev)
-        drop, adds = set(), []  # adds: (n, start, end) to place after removals
-        retimed = trimmed = removed = 0
-        for ob in obs:
-            n, k = ob.get("n"), ob.get("kind")
-            if k == "exclude":
+        drop = set()
+        added = retimed = trimmed = removed = 0
+        touched = []  # (clean_official, start, end) -- to suppress superseded part-fragments
+        for n, d in intent.items():
+            if d.get("remove") and not d.get("place"):
                 for ev in by_n.get(n, []):
                     drop.add(id(ev)); removed += 1
-            elif k == "wrong":                      # drop the wrong line, place shouldBe
-                for ev in by_n.get(n, []):
-                    drop.add(id(ev)); removed += 1
-                m = _re.match(r"#(\d+)", ob.get("shouldBe") or "")
-                if m and ob.get("at") is not None:
-                    rn = int(m.group(1)); adds.append((rn, ob["at"], ob["at"] + dur_of(rn)))
-            elif k == "trim" and ob.get("keep"):
-                for ev in by_n.get(n, []):
-                    ev[2] = ob["keep"]; trimmed += 1
-            elif k == "retime":
-                evs = by_n.get(n)
-                if evs:
-                    if ob.get("start") is not None: evs[0][0] = ob["start"]
-                    if ob.get("end") is not None: evs[0][1] = ob["end"]
-                    retimed += 1
-                elif ob.get("start") is not None and n is not None:
-                    adds.append((n, ob["start"], ob.get("end") or ob["start"] + dur_of(n)))
-            elif k == "missing" and ob.get("at") is not None and n is not None:
-                evs = by_n.get(n)
-                if evs:
-                    evs[0][0] = ob["at"]; evs[0][1] = ob["at"] + dur_of(n); retimed += 1
-                else:
-                    adds.append((n, ob["at"], ob["at"] + dur_of(n)))
-        final = [ev for ev in final if id(ev) not in drop]
-        here = {ev[3] for ev in final if ev[3] is not None}
-        added = 0
-        for n, s, e in adds:                        # don't double-place (wrong+missing)
-            if n in here:
                 continue
-            final.append([s, e, lines[n][0], n]); here.add(n); added += 1
+            evs = by_n.get(n)
+            if evs:                                 # edit the existing placement in place
+                ev = evs[0]
+                if d.get("start") is not None: ev[0] = d["start"]
+                if d.get("end") is not None: ev[1] = d["end"]
+                if d.get("text") is not None: ev[2] = d["text"]; trimmed += 1
+                if d.get("start") is not None or d.get("end") is not None: retimed += 1
+                touched.append((clean(lines[n][0]), ev[0], ev[1]))
+            elif d.get("place"):                    # the line isn't in the track -- create it
+                s = d.get("start")
+                if s is None:
+                    continue                        # nothing to anchor on
+                e = d["end"] if d.get("end") is not None else s + dur_of(n)
+                txt = d["text"] if d.get("text") is not None else lines[n][0]
+                final.append([s, e, txt, n]); added += 1
+                if d.get("text") is not None: trimmed += 1
+                touched.append((clean(lines[n][0]), s, e))
+        final = [ev for ev in final if id(ev) not in drop]
+        # a note placing/editing a line supersedes the matcher's part-fragment of
+        # that same line sitting under it (e.g. a trimmed cue + its leftover part)
+        final = [ev for ev in final if not (
+            ev[3] is None and clean(ev[2])
+            and any(clean(ev[2]) in full and ev[1] > cs - 1 and ev[0] < ce + 1
+                    for full, cs, ce in touched))]
         print(f"  applied review notes ({len(obs)} obs): +{added} added, "
               f"{retimed} retimed, {trimmed} trimmed, -{removed} removed")
         return final
