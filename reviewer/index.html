@@ -524,7 +524,9 @@ function loop() {
   // overlay — only rebuilt when the active set changes, so a Yomitan
   // selection isn't wiped every frame
   const act = activeAt(t);
-  const pact = parts.filter((p) => t >= p.start && t < p.end);
+  // a note on a line supersedes the matcher's part-fragment of it (matches the
+  // pipeline bake) -- so the preview never shows the fragment + your placed line
+  const pact = parts.filter((p) => t >= p.start && t < p.end && !effState.get(p.parent)?.edited);
   const ovKey = act.map((l) => l.n).join(",") + "|" + pact.map((p) => p.parent + ":" + p.start).join(",");
   if (ovKey !== lastOvKey) {
     const ov = $("#overlay"); ov.innerHTML = "";
