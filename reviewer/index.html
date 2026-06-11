@@ -106,6 +106,7 @@
   .row.ingap.unplaced .txt { color: #c3b27a; }
   .row.current { background: #233247; box-shadow: inset 3px 0 0 var(--accent); }
   .row.flagged { box-shadow: inset 3px 0 0 var(--accent2); }
+  .row.focus { outline: 2px solid var(--accent); outline-offset: -2px; }
   .row.selected { background: #29331f; box-shadow: inset 3px 0 0 var(--good); }
   .row.selected.current { background: #314227; }
   #selbar { display: none; align-items: center; gap: 8px; padding: 6px 10px;
@@ -297,6 +298,7 @@
         <li>method badge: <span class="m-pin mono">pin</span> human-placed · <span class="m-interp mono">interp</span> inferred (be skeptical) · <span class="m-rescue mono">rescue/part</span> fuzzy · <span class="mono">cover</span> heard.</li>
         <li>click the <b>#number</b> (or double-click a row) to open its flag buttons.</li>
         <li><b>Ctrl/⌘-click</b> or <b>Shift-click</b> rows to multi-select, then: <b>Place block @ playhead</b> (lay unplaced lines out from the playhead by official spacing), <b>Remove all</b>, or right-click the <i>correct</i> line to mark the selected ones wrong. <kbd>Esc</kbd> clears.</li>
+        <li><b>Time a line fast</b>: click it to <i>focus</i> (accent outline), then tap <kbd>i</kbd> at the spoken start and <kbd>o</kbd> at the end. Frame-accurate, and it updates <i>one</i> note in place — no pile-up of retimes. Works on an unplaced line too (placing it).</li>
       </ul>
     </div>
     <div class="hsec"><b>Flag buttons</b> — per row, or the bar under the video for the current line. Each flag previews on the track <b>live</b> (the line moves/changes/appears/vanishes as you flag), but the real <code>.ass</code> is baked by the pipeline from your exported notes — so nothing is silently changed.
@@ -313,8 +315,9 @@
     <div class="hsec"><b>Keys</b> (rebind/disable in <b>⚙</b>) — <kbd>space</kbd> play/pause ·
       <kbd>←</kbd>/<kbd>→</kbd> previous/next subtitle · <kbd>a</kbd>/<kbd>d</kbd> seek
       back/forward by the interval (default 3s) · <kbd>,</kbd>/<kbd>.</kbd> 0.1s nudge ·
-      <kbd>x</kbd> remove current · <kbd>c</kbd> note now. Subtitles are selectable —
-      hover with Yomitan to look up words.</div>
+      <kbd>x</kbd> remove current · <kbd>c</kbd> note now ·
+      <kbd>i</kbd>/<kbd>o</kbd> <b>time the focused line</b> (mark in / out). Subtitles
+      are selectable — hover with Yomitan to look up words.</div>
     <div class="actions"><button id="hClose">Got it</button></div>
   </div>
 </div>
@@ -475,9 +478,9 @@ function buildList() {
     row.appendChild(acts);
 
     // click time → seek + copy timestamp ; click # → actions ; right-click → quick menu
-    tcell.onclick = (e) => { e.stopPropagation(); const t = effStart(l.n); if (t != null) { seek(t); copyText(fmt(t)); } };
-    row.querySelector(".n").onclick = (e) => { e.stopPropagation(); toggleActs(row); };
-    main.onclick = () => { const t = effStart(l.n); if (t != null) seek(t); else toggleActs(row); };
+    tcell.onclick = (e) => { e.stopPropagation(); setFocus(l.n); const t = effStart(l.n); if (t != null) { seek(t); copyText(fmt(t)); } };
+    row.querySelector(".n").onclick = (e) => { e.stopPropagation(); setFocus(l.n); toggleActs(row); };
+    main.onclick = () => { setFocus(l.n); const t = effStart(l.n); if (t != null) seek(t); else toggleActs(row); };
     row.ondblclick = () => toggleActs(row);
     row.oncontextmenu = (e) => openCtx(e, l);
     // capture phase so a modifier-click selects instead of seeking/expanding
@@ -490,6 +493,7 @@ function buildList() {
   }
   renderObs();
   renderSelection();
+  if (focusN != null && rowEls[focusN]) rowEls[focusN].classList.add("focus");
 }
 function mkAct(label, fn) { const b = el("button", null, label); b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; }
 function toggleActs(row) { row.classList.toggle("open"); }
@@ -1067,6 +1071,8 @@ const ACTIONS = [
   { id: "seekForward",   label: "Seek forward (interval)",   def: "d" },
   { id: "nudgeBack",     label: "Nudge back 0.1s",           def: "," },
   { id: "nudgeForward",  label: "Nudge forward 0.1s",        def: "." },
+  { id: "markIn",        label: "Time focused line: start = now (mark in)",  def: "i" },
+  { id: "markOut",       label: "Time focused line: end = now (mark out)",   def: "o" },
   { id: "removeCurrent", label: "Flag: remove current line", def: "x" },
   { id: "noteNow",       label: "Flag: note at moment",      def: "c" },
 ];
@@ -1096,7 +1102,36 @@ const HANDLERS = {
   nudgeForward: () => (video.currentTime += 0.1),
   removeCurrent: () => { const n = $("#flagbar").dataset.curn; if (n !== "") openFlag("exclude", lines[+n]); },
   noteNow: () => openFlag("note", currentLineForNote()),
+  markIn: () => timeFocused("start"),
+  markOut: () => timeFocused("end"),
 };
+
+// "Time this line" = mark in/out. Focus a line (click any row), then set its
+// start/end to the playhead. One retime note per line, UPDATED in place (not a
+// new note each nudge) -- collapses place-then-stretch-then-renudge into i / o.
+let focusN = null;
+function setFocus(n) {
+  focusN = n;
+  document.querySelectorAll(".row.focus").forEach((r) => r.classList.remove("focus"));
+  if (rowEls[n]) rowEls[n].classList.add("focus");
+}
+function timeFocused(field) {
+  let n = focusN;
+  if (n == null) { const c = $("#flagbar").dataset.curn; if (c !== "") n = +c; }
+  if (n == null) { toast("click a line to focus it first"); return; }
+  let ob = observations.find((o) => o.n === n && o.kind === "retime");
+  if (!ob) {
+    ob = { id: nextId(), kind: "retime", n, text: lines[n].text, shownStart: effStart(n) };
+    observations.push(ob);
+  }
+  ob[field] = +video.currentTime.toFixed(3);
+  if (ob.start != null && ob.end != null && ob.start > ob.end) {  // keep order sane
+    [ob.start, ob.end] = field === "start" ? [ob.start, ob.start] : [ob.end, ob.end];
+  }
+  saveObservations(); renderObs();
+  if (rowEls[n] && $("#follow").checked && !listHover) rowEls[n].scrollIntoView({ block: "center" });
+  toast(`#${n} ${field === "start" ? "in" : "out"} → ${fmt(video.currentTime)}`);
+}
 const normKey = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
 const MODKEYS = ["Shift", "Control", "Alt", "Meta"];
 function actionForKey(k) { for (const id in binds) if (binds[id] === k) return id; return null; }
