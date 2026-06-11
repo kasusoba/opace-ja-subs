@@ -233,6 +233,8 @@
       <span class="curtext" id="curtext"><span class="meta">— no active line —</span></span>
       <button data-flag="exclude" data-cur="1" title="Shown but shouldn't be (x)">✕ remove</button>
       <button data-flag="retime" data-cur="1" title="Right line, wrong time — seek to where it should start first">⏱ retime</button>
+      <button id="markInBtn" title="Mark in: focused (or playing) line start = playhead (key: i)">⇤ in</button>
+      <button id="markOutBtn" title="Mark out: focused (or playing) line end = playhead (key: o)">out ⇥</button>
       <button data-flag="wrong" data-cur="1" title="Wrong line is shown here">≠ wrong</button>
       <button data-flag="note" data-cur="0" title="Free note at this moment (c)">✎ note@now</button>
       <button data-flag="section" data-cur="0" title="A whole stretch has no subtitle">▭ no sub here</button>
@@ -301,7 +303,7 @@
         <li>method badge: <span class="m-pin mono">pin</span> human-placed · <span class="m-interp mono">interp</span> inferred (be skeptical) · <span class="m-rescue mono">rescue/part</span> fuzzy · <span class="mono">cover</span> heard.</li>
         <li>click the <b>#number</b> (or double-click a row) to open its flag buttons.</li>
         <li><b>Ctrl/⌘-click</b> or <b>Shift-click</b> rows to multi-select, then: <b>Place block @ playhead</b> (lay unplaced lines out from the playhead by official spacing), <b>Remove all</b>, or right-click the <i>correct</i> line to mark the selected ones wrong. <kbd>Esc</kbd> clears.</li>
-        <li><b>Time a line fast</b>: click it to <i>focus</i> (accent outline), then tap <kbd>i</kbd> at the spoken start and <kbd>o</kbd> at the end. Frame-accurate, and it updates <i>one</i> note in place — no pile-up of retimes. Works on an unplaced line too (placing it).</li>
+        <li><b>Time a line fast</b>: click it to <i>focus</i> (accent outline), then mark its spoken start and end — by keys <kbd>i</kbd>/<kbd>o</kbd> or the <b>⇤ in</b> / <b>out ⇥</b> buttons under the video. Frame-accurate, and it updates <i>one</i> note in place — no pile-up of retimes. Works on an unplaced line too (placing it).</li>
       </ul>
     </div>
     <div class="hsec"><b>Flag buttons</b> — per row, or the bar under the video for the current line. Each flag previews on the track <b>live</b> (the line moves/changes/appears/vanishes as you flag), but the real <code>.ass</code> is baked by the pipeline from your exported notes — so nothing is silently changed.
@@ -1140,6 +1142,8 @@ function timeFocused(field) {
   toast(`#${n} ${field === "start" ? "in" : "out"} → ${fmt(video.currentTime)}`);
 }
 $("#focusind").onclick = () => setFocus(null);
+$("#markInBtn").onclick = () => timeFocused("start");   // mouse equivalents of i / o
+$("#markOutBtn").onclick = () => timeFocused("end");
 const normKey = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
 const MODKEYS = ["Shift", "Control", "Alt", "Meta"];
 function actionForKey(k) { for (const id in binds) if (binds[id] === k) return id; return null; }
