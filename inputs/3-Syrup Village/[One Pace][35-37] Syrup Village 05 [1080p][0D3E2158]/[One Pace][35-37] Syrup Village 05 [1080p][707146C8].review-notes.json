@@ -1,0 +1,72 @@
+{
+  "episode": "[One Pace][35-37] Syrup Village 05 [1080p][707146C8]",
+  "video": "[One Pace][35-37] Syrup Village 05 [1080p][707146C8].mkv",
+  "tool": "opace-reviewer",
+  "count": 9,
+  "observations": [
+    {
+      "kind": "exclude",
+      "n": 349,
+      "text": "それを言うな",
+      "shownStart": 39.975,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 350,
+      "text": "次回 ワンピース",
+      "shownStart": 41.31,
+      "method": "cover"
+    },
+    {
+      "kind": "missing",
+      "n": 45,
+      "text": "村の平和を乱す海賊め",
+      "at": 162.312624
+    },
+    {
+      "kind": "missing",
+      "n": 46,
+      "text": "やめろ！",
+      "at": 164.429899
+    },
+    {
+      "kind": "retime",
+      "n": 49,
+      "text": "もうよせ　お… お前ら",
+      "shownStart": 174.496329,
+      "method": null,
+      "start": 173.319733
+    },
+    {
+      "kind": "retime",
+      "n": 49,
+      "text": "もうよせ　お… お前ら",
+      "shownStart": 173.319733,
+      "method": null,
+      "end": 175.50726
+    },
+    {
+      "kind": "missing",
+      "n": 49,
+      "text": "もうよせ　お… お前ら",
+      "at": 174.496329
+    },
+    {
+      "kind": "retime",
+      "n": 69,
+      "text": "キャプテン！",
+      "shownStart": 238.539,
+      "method": "interp",
+      "start": 240.335694
+    },
+    {
+      "kind": "retime",
+      "n": 69,
+      "text": "キャプテン！",
+      "shownStart": 240.335694,
+      "method": "interp",
+      "end": 241.913007
+    }
+  ]
+}
