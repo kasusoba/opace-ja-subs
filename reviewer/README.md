@@ -32,7 +32,8 @@ free note) and exports them as a list for a human to judge into the right fix
    | ⚑ I hear it here | an unplaced line *is* spoken at this moment |
    | ⏱ retime | right line, wrong time (e.g. One Pace trimmed it) — drag the start/end **tips** on the slider (video scrubs as you drag) or type a new start/end |
    | ✂ trim | One Pace cut part of the line — **click a character** to set the nearest edge (or drag the tips / ◀▶) and keep a contiguous **substring** of the official text (no typing; timing via retime) |
-   | ≠ wrong | wrong line shown — type what it should be |
+   | ≠ wrong | wrong line shown — type which **other official line** should be here |
+   | ✏ fix text | the official line's **text itself** is wrong — type the corrected text (timing unchanged); the box pre-fills with the current text so you just edit it |
    | ✎ note | anything else, tied to the moment |
    | ▭ no sub here | a whole stretch (from → to) has no subtitle |
 
@@ -99,6 +100,8 @@ persist in the browser.
       "shouldBe": "あっ 犬！ ヘヘッ (line 49)" },
     { "kind": "trim", "n": 60, "text": "てめえ 今の事態\\N分かってんのか！",
       "keep": "今の事態\\N分かってんのか！", "trimStart": 4, "trimEnd": 17 },
+    { "kind": "edit", "n": 73, "text": "海賊王に俺はなる", "shownStart": 412.5,
+      "fixed": "海賊王に俺はなる！", "note": "official sub dropped the 「！」" },
     { "kind": "section", "from": 1052.0, "to": 1098.0, "note": "Buggy crew fight — no subs at all" },
     { "kind": "exclude", "n": 438, "text": "よーし\\N曲芸ショーを見せてやれ" }
   ]
@@ -107,14 +110,15 @@ persist in the browser.
 
 Time fields: `at` (heard-at / note moment), `start`/`end` (retime — either or both),
 `from`/`to` (section span). `shownStart` is where the line currently sits, for
-reference. `n`/`text` point at the official line; `shouldBe` names the correct one.
+reference. `n`/`text` point at the official line; `shouldBe` names the correct one
+(for `wrong`); `fixed` is the corrected text (for `edit`).
 ## Baking notes into the sub
 
 Drop the exported `…​.review-notes.json` next to the video and run the pipeline
 (`python opace_asr_bridge.py "<episode>" --redo`). It applies the notes as a
 final edit layer — exclude/wrong remove a line, missing/wrong place one at the
-heard time, retime moves start/end, trim rewrites the text — baking them into the
-`.ja.ass` that mpv/VLC load. No re-matching or re-transcription happens.
+heard time, retime moves start/end, trim/edit rewrite the text — baking them into
+the `.ja.ass` that mpv/VLC load. No re-matching or re-transcription happens.
 
 `review.json` is deliberately left **raw** (the pre-notes matcher track), so the
 reviewer always previews your notes on top of it without ever double-applying.

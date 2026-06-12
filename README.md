@@ -21,7 +21,7 @@ so ASR mistakes can't reach your screen.
                      ▼
  ┌─ reviewer/index.html ──────────────────────────────────────────┐
  │ drop video + review.json → watch, flag fixes (previews live):   │
- │   remove · missing · retime · trim · wrong · section · note     │
+ │ remove · missing · retime · trim · wrong · edit · section · note│
  │ Export →  video.review-notes.json   (drop in the episode folder)│
  └─────────────────────────────────────────────────────────────────┘
                      │
@@ -171,7 +171,7 @@ for reviewing an episode and capturing what's wrong as a structured list. Drop i
 the video and its `…​.ja.ass.review.json` sidecar (written next to every output);
 it renders the track, surfaces unplaced official lines that fall in the gap you're
 watching ("is this spoken here?"), and lets you flag *remove / missing / retime /
-wrong / trim / note* per line — each previewed live on the track. Export the notes,
+wrong / trim / edit / note* per line — each previewed live on the track. Export the notes,
 drop the `…​.review-notes.json` back in the episode folder, and re-run with
 `--redo`: the tool **bakes** the edits into the `.ja.ass` (no re-transcription).
 Notes that need judgement (a missing source file, a structural fix) are decided

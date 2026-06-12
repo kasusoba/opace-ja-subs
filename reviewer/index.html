@@ -82,6 +82,7 @@
   .k.wrong   { background: #3a2247; color: var(--pin); }
   .k.note    { background: #20303f; color: var(--accent); }
   .k.trim    { background: #143b3a; color: #5fd0c0; }
+  .k.edit    { background: #402033; color: #f29ec0; }
 
   /* ---------- subtitle list ---------- */
   #listwrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -236,6 +237,7 @@
       <button id="markInBtn" title="Mark in: focused (or playing) line start = playhead (key: i)">⇤ in</button>
       <button id="markOutBtn" title="Mark out: focused (or playing) line end = playhead (key: o)">out ⇥</button>
       <button data-flag="wrong" data-cur="1" title="Wrong line is shown here">≠ wrong</button>
+      <button data-flag="edit" data-cur="1" title="Official text itself is wrong — correct it (e)">✏ fix text</button>
       <button data-flag="note" data-cur="0" title="Free note at this moment (c)">✎ note@now</button>
       <button data-flag="section" data-cur="0" title="A whole stretch has no subtitle">▭ no sub here</button>
       <span id="focusind" title="i/o (mark in/out) target — click to release"></span>
@@ -313,6 +315,7 @@
         <li><span class="k retime">⏱ retime</span> — right line, wrong time (e.g. One Pace trimmed it): drag the start/end <b>tips</b> on the slider (the video scrubs as you drag) or type a new <b>start</b>/<b>end</b> (blank = keep).</li>
         <li><span class="k trim">✂ trim</span> — One Pace cut part of the line: <b>click a character</b> to set the nearest edge (or drag the tips / ◀▶) and keep only the spoken <b>substring</b> of the official text — never typed/edited.</li>
         <li><span class="k wrong">≠ wrong</span> — wrong line shown; type what it <b>should be</b>.</li>
+        <li><span class="k edit">✏ fix text</span> — the official line text itself is wrong; type the <b>corrected</b> text (timing stays). Differs from <i>wrong</i>, which swaps in a different official line.</li>
         <li><span class="k note">✎ note</span> — anything else, tied to the moment.</li>
         <li><span class="k note">▭ no sub here</span> (bar) — a whole stretch (from→to) has no subtitle.</li>
       </ul>
@@ -476,6 +479,7 @@ function buildList() {
       acts.appendChild(mkAct("⏱ retime", () => openFlag("retime", l)));
       acts.appendChild(mkAct("✂ trim", () => openFlag("trim", l)));
       acts.appendChild(mkAct("≠ wrong", () => openFlag("wrong", l)));
+      acts.appendChild(mkAct("✏ fix text", () => openFlag("edit", l)));
     } else {
       acts.appendChild(mkAct("⚑ I hear it here", () => openFlag("missing", l)));
     }
@@ -589,6 +593,10 @@ const KINDS = {
   trim: { title: "Trim — One Pace cut part of this line",
     sub: (l) => `#${l.n}  keep only the part that's still spoken (text never changes)`,
     fields: [], note: "(optional)" },
+  edit: { title: "Fix text — the official line itself is wrong",
+    sub: (l) => `#${l.n}  correct the text (timing unchanged)`,
+    fields: [{ key: "fixed", type: "text", label: "Corrected text", def: "official" }],
+    note: "(optional — what was wrong?)" },
   section: { title: "No subtitle across this stretch",
     sub: () => "which scene is missing its sub?",
     fields: [
@@ -626,6 +634,7 @@ function openFlag(kind, line) {
     } else {
       const inp = el("input"); inp.type = "text"; inp.id = "mf_" + f.key;
       if (f.ph) inp.placeholder = f.ph;
+      if (f.def === "official" && line) inp.value = cleanText(line.text);
       wrap.appendChild(inp);
     }
     box.appendChild(wrap);
@@ -809,6 +818,10 @@ $("#mSave").onclick = () => {
   const need = { missing: ["at"], section: ["from", "to"] }[pending.kind];
   if (need && need.some((kk) => ob[kk] == null)) { alert("Please fill: " + need.join(", ")); return; }
   if (pending.kind === "retime" && ob.start == null && ob.end == null) { alert("Set a new start and/or end"); return; }
+  if (pending.kind === "edit") {
+    if (!ob.fixed) { alert("Type the corrected text, or Cancel."); return; }
+    if (cleanText(ob.fixed) === cleanText(l.text)) { alert("Text unchanged — edit it, or Cancel."); return; }
+  }
   observations.push(ob); saveObservations(); renderObs();
   $("#modal").classList.remove("show");
 };
@@ -850,6 +863,7 @@ function applyEdits() {
         { const m = /^#(\d+)/.exec(ob.shouldBe || ""); if (m && ob.at != null) adds.push({ n: +m[1], at: ob.at }); }
         break;
       case "trim": if (s && ob.keep != null) { s.text = ob.keep; s.edited = true; } break;
+      case "edit": if (s && ob.fixed != null) { s.text = ob.fixed; s.edited = true; } break;
       case "retime":
         if (s && s.emitted) { if (ob.start != null) s.start = ob.start; if (ob.end != null) s.end = ob.end; s.edited = true; }
         else if (s && ob.start != null) { s.emitted = true; s.start = ob.start; s.end = ob.end != null ? ob.end : ob.start + dur(ob.n); s.edited = true; }
@@ -885,6 +899,7 @@ function obDetail(ob) {
   if (ob.kind === "section") return "→ no sub " + fmt(ob.from) + "–" + fmt(ob.to);
   if (ob.kind === "wrong" && ob.shouldBe) return "→ should be: " + ob.shouldBe;
   if (ob.kind === "trim") return "→ keep: " + cleanText(ob.keep || "");
+  if (ob.kind === "edit") return "→ fix: " + cleanText(ob.fixed || "");
   return "";
 }
 function renderObs() {
@@ -941,7 +956,7 @@ $("#btnCopy").onclick = async () => {
   } catch (e) { alert("clipboard blocked — use Export"); }
 };
 // import: restore/merge observations from a previously exported notes file
-const obSig = (o) => JSON.stringify([o.kind, o.n, o.at, o.start, o.end, o.from, o.to, o.shouldBe, o.note]);
+const obSig = (o) => JSON.stringify([o.kind, o.n, o.at, o.start, o.end, o.from, o.to, o.shouldBe, o.keep, o.fixed, o.note]);
 $("#btnImport").onclick = () => { if (!jsonReady) { alert("Load an episode first."); return; } $("#fileNotes").click(); };
 $("#fileNotes").onchange = (e) => {
   const f = e.target.files[0]; if (!f) return;
@@ -1081,6 +1096,7 @@ const ACTIONS = [
   { id: "markIn",        label: "Time focused line: start = now (mark in)",  def: "i" },
   { id: "markOut",       label: "Time focused line: end = now (mark out)",   def: "o" },
   { id: "removeCurrent", label: "Flag: remove current line", def: "x" },
+  { id: "editCurrent",   label: "Flag: fix text of current line", def: "e" },
   { id: "noteNow",       label: "Flag: note at moment",      def: "c" },
 ];
 const DEFAULT_BINDS = Object.fromEntries(ACTIONS.map((a) => [a.id, a.def]));
@@ -1108,6 +1124,7 @@ const HANDLERS = {
   nudgeBack: () => (video.currentTime -= 0.1),
   nudgeForward: () => (video.currentTime += 0.1),
   removeCurrent: () => { const n = $("#flagbar").dataset.curn; if (n !== "") openFlag("exclude", lines[+n]); },
+  editCurrent: () => { const n = $("#flagbar").dataset.curn; if (n !== "") openFlag("edit", lines[+n]); },
   noteNow: () => openFlag("note", currentLineForNote()),
   markIn: () => timeFocused("start"),
   markOut: () => timeFocused("end"),

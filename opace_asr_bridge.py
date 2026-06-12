@@ -1134,6 +1134,10 @@ def process(a, onepace, jasubs, outdir):
                 d = get(n); d["text"] = ob["keep"]
                 if ob.get("shownStart") is not None:
                     d["place"] = True; d.setdefault("start", ob["shownStart"])
+            elif k == "edit" and ob.get("fixed"):  # the official text itself is wrong
+                d = get(n); d["text"] = ob["fixed"]; d["edit"] = True
+                if ob.get("shownStart") is not None:
+                    d["place"] = True; d.setdefault("start", ob["shownStart"])
             elif k == "retime":
                 d = get(n)
                 if ob.get("start") is not None: d["start"] = ob["start"]; d["place"] = True
@@ -1146,7 +1150,7 @@ def process(a, onepace, jasubs, outdir):
             if ev[3] is not None:
                 by_n.setdefault(ev[3], []).append(ev)
         drop = set()
-        added = retimed = trimmed = removed = 0
+        added = retimed = trimmed = edited = removed = 0
         touched = []  # (clean_official, start, end) -- to suppress superseded part-fragments
         for n, d in intent.items():
             if d.get("remove") and not d.get("place"):
@@ -1158,7 +1162,9 @@ def process(a, onepace, jasubs, outdir):
                 ev = evs[0]
                 if d.get("start") is not None: ev[0] = d["start"]
                 if d.get("end") is not None: ev[1] = d["end"]
-                if d.get("text") is not None: ev[2] = d["text"]; trimmed += 1
+                if d.get("text") is not None:
+                    ev[2] = d["text"]
+                    edited += 1 if d.get("edit") else 0; trimmed += 0 if d.get("edit") else 1
                 if d.get("start") is not None or d.get("end") is not None: retimed += 1
                 touched.append((clean(lines[n][0]), ev[0], ev[1]))
             elif d.get("place"):                    # the line isn't in the track -- create it
@@ -1168,7 +1174,8 @@ def process(a, onepace, jasubs, outdir):
                 e = d["end"] if d.get("end") is not None else s + dur_of(n)
                 txt = d["text"] if d.get("text") is not None else lines[n][0]
                 final.append([s, e, txt, n]); added += 1
-                if d.get("text") is not None: trimmed += 1
+                if d.get("text") is not None:
+                    edited += 1 if d.get("edit") else 0; trimmed += 0 if d.get("edit") else 1
                 touched.append((clean(lines[n][0]), s, e))
         final = [ev for ev in final if id(ev) not in drop]
         # a note placing/editing a line supersedes the matcher's part-fragment of
@@ -1178,7 +1185,7 @@ def process(a, onepace, jasubs, outdir):
             and any(clean(ev[2]) in full and ev[1] > cs - 1 and ev[0] < ce + 1
                     for full, cs, ce in touched))]
         print(f"  applied review notes ({len(obs)} obs): +{added} added, "
-              f"{retimed} retimed, {trimmed} trimmed, -{removed} removed")
+              f"{retimed} retimed, {trimmed} trimmed, {edited} edited, -{removed} removed")
         return final
 
     dst = os.path.join(outdir, stem + ".ja.ass")
