@@ -78,12 +78,50 @@ required because browsers can't silently re-open them — but the *notes* persis
 <kbd>space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> previous/next subtitle ·
 <kbd>a</kbd>/<kbd>d</kbd> seek back/forward by the interval (default 3s) ·
 <kbd>,</kbd>/<kbd>.</kbd> nudge 0.1s · <kbd>x</kbd> remove current line ·
-<kbd>c</kbd> note at current moment. In the flag dialog: <kbd>esc</kbd> cancel,
-<kbd>ctrl/⌘ + enter</kbd> save.
+<kbd>c</kbd> note at current moment · <kbd>m</kbd> mine current line → Anki.
+In the flag dialog: <kbd>esc</kbd> cancel, <kbd>ctrl/⌘ + enter</kbd> save.
 
 All shortcuts are **rebindable** (and the seek interval is adjustable) in the
 **⚙** settings panel — click a key to rebind, ✕ to unbind it entirely. Settings
 persist in the browser.
+
+## Mining words to Anki (⛏ / <kbd>m</kbd>)
+
+Because the reviewer is where the `.ass` is *being made*, it's also where the
+**live** subtitle timing lives — so it mints the Anki card itself instead of
+routing through asbplayer (no more dragging the sub onto an overlay, and the
+audio always matches your latest retime/trim).
+
+Workflow, same muscle memory as asbplayer + Yomitan:
+1. Hover a word with **Yomitan** → *add to Anki* (this creates the note: word,
+   gloss, sentence).
+2. With the line on screen, press **<kbd>m</kbd>** (or click **⛏ mine**). The
+   reviewer screenshots the line's start frame, records its audio in real time
+   (the playhead jumps to the line and plays it, then returns — just like
+   asbplayer), encodes it to **MP3**, and writes `[sound:…]` + `<img>` onto the
+   **most-recently-added note** (the Yomitan one). Headless — a toast confirms.
+
+**One-time setup**, in **⚙ Settings → Anki** (everything is a dropdown, populated
+live from AnkiConnect — click **↻** to (re)connect; the status line confirms):
+- **AnkiConnect URL** — usually `http://127.0.0.1:8765`.
+- **Deck** + **Note Type** — pick the same deck and note type Yomitan mines to
+  (e.g. `Mining` / `Animecards`). Mining attaches to the **newest note added
+  today in this deck + type**, so these scope it to your Yomitan note.
+- **Audio field** / **Image field** — chosen from the note type's actual fields
+  (e.g. `SentenceAudio`, `Picture`). Leave Image on `(none)` to skip screenshots.
+- **Audio pad start/end** — seconds of slack around the line (default 0).
+
+**AnkiConnect must allow this page's origin** (the one cross-machine gotcha):
+in Anki → *Tools → Add-ons → AnkiConnect → Config*, add your origin to
+`webCorsOriginList`. If you double-click the file (`file://`), add `"null"`; if
+you serve it over a local server, add e.g. `"http://localhost:8000"`. Quick and
+local-only: set it to `["*"]`. (Yomitan/asbplayer needed the same kind of
+whitelisting — it's an Anki security gate, not a reviewer quirk.) Restart Anki
+after editing. If mining toasts `mine failed: Failed to fetch`, this is why.
+
+Notes on the capture: it records in real time, so a 3-second line takes ~3
+seconds; audio is captured from the `<video>` via `captureStream()` (don't mute
+the player while mining). MP3 keeps cards playable on AnkiMobile/AnkiDroid.
 
 ## Export shape
 
