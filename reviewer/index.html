@@ -1768,7 +1768,7 @@ async function mineCurrentLine() {
   const cfg = ankiCfg();
   if (!cfg.audioField && !cfg.imageField && !cfg.sentenceField && !cfg.hintField) { toast("set Anki fields in Settings first"); return; }
   mining = true;
-  const t0 = video.currentTime, wasPlaying = !video.paused;
+  const wasPlaying = !video.paused;
   $("#mineBtn").disabled = true;
   try {
     toast(`⛏ mining #${line.n}…`);
@@ -1791,7 +1791,7 @@ async function mineCurrentLine() {
     toast(`✓ mined #${line.n} → note ${noteId}`);
   } catch (e) { toast("mine failed: " + e.message); console.error("[mine]", e); }
   finally {
-    video.currentTime = t0; if (wasPlaying) video.play();
+    video.currentTime = line.end; if (wasPlaying) video.play();  // resume just past the mined line, not back at its start
     mining = false; $("#mineBtn").disabled = false;
   }
 }
