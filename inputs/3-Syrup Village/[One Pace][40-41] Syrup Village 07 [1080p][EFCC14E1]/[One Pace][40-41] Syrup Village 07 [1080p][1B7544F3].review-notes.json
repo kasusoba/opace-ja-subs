@@ -1,0 +1,104 @@
+{
+  "episode": "[One Pace][40-41] Syrup Village 07 [1080p][1B7544F3]",
+  "video": "[One Pace][40-41] Syrup Village 07 [1080p][1B7544F3].mkv",
+  "tool": "opace-reviewer",
+  "count": 13,
+  "observations": [
+    {
+      "kind": "exclude",
+      "n": 42,
+      "text": "何っ",
+      "shownStart": 48.67,
+      "method": "cover"
+    },
+    {
+      "kind": "missing",
+      "n": 113,
+      "text": "いいえ",
+      "at": 305.089154
+    },
+    {
+      "kind": "missing",
+      "n": 146,
+      "text": "俺は 本物の海賊になるんだ\\Nヒヒヒヒヒヒッ…",
+      "at": 406.081154
+    },
+    {
+      "kind": "retime",
+      "n": 179,
+      "text": "“えーっ”じゃない",
+      "shownStart": 514.066,
+      "method": "cover",
+      "end": 516.93011
+    },
+    {
+      "kind": "missing",
+      "n": 208,
+      "text": "ええ",
+      "at": 617.745972
+    },
+    {
+      "kind": "exclude",
+      "n": 215,
+      "text": "ありがとうございます",
+      "shownStart": 632.7,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 221,
+      "text": "ハア… 入った",
+      "shownStart": 648.393138,
+      "method": "interp1",
+      "start": 648.335557
+    },
+    {
+      "kind": "retime",
+      "n": 221,
+      "text": "ハア… 入った",
+      "shownStart": 644.357,
+      "method": "interp1",
+      "start": 648.393138
+    },
+    {
+      "kind": "retime",
+      "n": 221,
+      "text": "ハア… 入った",
+      "shownStart": 648.393138,
+      "method": "interp1",
+      "end": 649.715353
+    },
+    {
+      "kind": "retime",
+      "n": 222,
+      "text": "この家とも お別れだ",
+      "shownStart": 649.07,
+      "method": "cover",
+      "start": 649.715353
+    },
+    {
+      "kind": "retime",
+      "n": 267,
+      "text": "キャプテンは俺だろうな？",
+      "shownStart": 814.31,
+      "method": "cover",
+      "end": 817.911961
+    },
+    {
+      "kind": "retime",
+      "n": 268,
+      "text": "バカ言え\\N俺がキャプテンだ！",
+      "shownStart": 816.625,
+      "method": "cover+snap",
+      "start": 817.911961
+    },
+    {
+      "kind": "retime",
+      "n": 268,
+      "text": "バカ言え\\N俺がキャプテンだ！",
+      "shownStart": 817.911961,
+      "method": "cover+snap",
+      "end": 820.710785
+    }
+  ]
+}

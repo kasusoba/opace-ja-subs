@@ -1,0 +1,264 @@
+{
+  "episode": "[One Pace][42-44] Baratie 01 [1080p][BE634289]",
+  "video": "[One Pace][42-44] Baratie 01 [1080p][BE634289].mkv",
+  "tool": "opace-reviewer",
+  "count": 35,
+  "observations": [
+    {
+      "kind": "exclude",
+      "n": 266,
+      "text": "達者でな",
+      "shownStart": 111.209,
+      "method": "interp1"
+    },
+    {
+      "kind": "edit",
+      "n": 291,
+      "text": "偉大なる航路に入る前に―",
+      "shownStart": 164.111,
+      "method": "interp",
+      "fixed": "グランドラインに入る前に―"
+    },
+    {
+      "kind": "missing",
+      "n": 310,
+      "text": "ああ？\\N１人… かな",
+      "at": 206.330374
+    },
+    {
+      "kind": "missing",
+      "n": 412,
+      "text": "どっ どけ 邪魔だ\\Nお前だろ それ",
+      "at": 366.322778
+    },
+    {
+      "kind": "retime",
+      "n": 484,
+      "text": "なっ… なに？",
+      "shownStart": 598.779,
+      "method": "interp",
+      "start": 600.163937
+    },
+    {
+      "kind": "retime",
+      "n": 484,
+      "text": "なっ… なに？",
+      "shownStart": 600.163937,
+      "method": "interp",
+      "end": 602.002955
+    },
+    {
+      "kind": "retime",
+      "n": 485,
+      "text": "こんな所で―",
+      "shownStart": 601.19,
+      "method": "cover",
+      "start": 602.002955
+    },
+    {
+      "kind": "retime",
+      "n": 485,
+      "text": "こんな所で―",
+      "shownStart": 602.002955,
+      "method": "cover",
+      "start": 602.525315
+    },
+    {
+      "kind": "retime",
+      "n": 492,
+      "text": "おっ… 俺たちは\\N海賊じゃねえんだぞ",
+      "shownStart": 623.484,
+      "method": "cover+snap",
+      "end": 626.404513
+    },
+    {
+      "kind": "missing",
+      "n": 527,
+      "text": "パチンコ！",
+      "at": 741.266002
+    },
+    {
+      "kind": "retime",
+      "n": 527,
+      "text": "パチンコ！",
+      "shownStart": 741.266002,
+      "method": null,
+      "end": 743.324987
+    },
+    {
+      "kind": "retime",
+      "n": 562,
+      "text": "でも―",
+      "shownStart": 846.351,
+      "method": "cover",
+      "start": 845.893371
+    },
+    {
+      "kind": "exclude",
+      "n": 703,
+      "text": "うわあああっ！",
+      "shownStart": 870.11,
+      "method": "cover"
+    },
+    {
+      "kind": "missing",
+      "n": 601,
+      "text": "ワイン",
+      "at": 994.199721
+    },
+    {
+      "kind": "exclude",
+      "n": 609,
+      "text": "うん？ 何のつもりだ",
+      "shownStart": 1010.142,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 618,
+      "text": "言いやがってーっ！",
+      "at": 1034.665438
+    },
+    {
+      "kind": "retime",
+      "n": 618,
+      "text": "言いやがってーっ！",
+      "shownStart": 1034.665438,
+      "method": null,
+      "start": 1035.366393
+    },
+    {
+      "kind": "retime",
+      "n": 637,
+      "text": "ウエイター！",
+      "shownStart": 1096.064,
+      "method": "cover",
+      "start": 1095.036762
+    },
+    {
+      "kind": "retime",
+      "n": 637,
+      "text": "ウエイター！",
+      "shownStart": 1095.036762,
+      "method": "cover",
+      "end": 1096.569906
+    },
+    {
+      "kind": "exclude",
+      "n": 704,
+      "text": "何のつもりだ",
+      "shownStart": 1157.61,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 705,
+      "text": "１週間にまけてくれ",
+      "shownStart": 1159.362,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 706,
+      "text": "ふ… ふざけんじゃねえ！",
+      "shownStart": 1161.197,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 677,
+      "text": "副料理長！",
+      "shownStart": 1238.784,
+      "method": "rescue+snap",
+      "start": 1238.036836
+    },
+    {
+      "kind": "retime",
+      "n": 752,
+      "text": "てめえみてえな つけあがった\\N勘違い野郎を見るとよ！",
+      "shownStart": 1380.95,
+      "method": "cover",
+      "end": 1384.720147
+    },
+    {
+      "kind": "missing",
+      "n": 818,
+      "text": "いいぞ コック！",
+      "at": 1583.547421
+    },
+    {
+      "kind": "retime",
+      "n": 818,
+      "text": "いいぞ コック！",
+      "shownStart": 1583.547421,
+      "method": null,
+      "start": 1583.797025
+    },
+    {
+      "kind": "exclude",
+      "n": 823,
+      "text": "このっ このっ",
+      "shownStart": 1602.774,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 840,
+      "text": "とっとと このメシを下げろ！",
+      "shownStart": 1641.168,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 841,
+      "text": "四の五の言ってねえで\\N食いやがれ",
+      "shownStart": 1644.964,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 842,
+      "text": "俺にとっちゃ 誰でも\\N腹減らしてるやつは客なんだよ",
+      "shownStart": 1647.424,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 837,
+      "text": "食え",
+      "at": 1651.60609
+    },
+    {
+      "kind": "retime",
+      "n": 854,
+      "text": "死ぬかと思った\\Nもうダメかと思った",
+      "shownStart": 1704.879945,
+      "method": "cover+snap1",
+      "start": 1704.663182
+    },
+    {
+      "kind": "retime",
+      "n": 854,
+      "text": "死ぬかと思った\\Nもうダメかと思った",
+      "shownStart": 1704.663182,
+      "method": "cover+snap1",
+      "end": 1706.320585
+    },
+    {
+      "kind": "retime",
+      "n": 854,
+      "text": "死ぬかと思った\\Nもうダメかと思った",
+      "shownStart": 1700.916,
+      "method": "cover+snap1",
+      "start": 1704.879945
+    },
+    {
+      "kind": "retime",
+      "n": 854,
+      "text": "死ぬかと思った\\Nもうダメかと思った",
+      "shownStart": 1704.879945,
+      "method": "cover+snap1",
+      "end": 1708.684131
+    }
+  ]
+}

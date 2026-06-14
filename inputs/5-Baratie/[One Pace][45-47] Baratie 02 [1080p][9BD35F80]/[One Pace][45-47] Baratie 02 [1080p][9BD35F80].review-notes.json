@@ -1,0 +1,214 @@
+{
+  "episode": "[One Pace][45-47] Baratie 02 [1080p][9BD35F80]",
+  "video": "[One Pace][45-47] Baratie 02 [1080p][9BD35F80].mkv",
+  "tool": "opace-reviewer",
+  "count": 29,
+  "observations": [
+    {
+      "kind": "retime",
+      "n": 271,
+      "text": "ああ あとは好きにしな",
+      "shownStart": 421.55,
+      "method": "cover",
+      "start": 420.779356
+    },
+    {
+      "kind": "missing",
+      "n": 284,
+      "text": "なーに",
+      "at": 461.735684
+    },
+    {
+      "kind": "retime",
+      "n": 288,
+      "text": "もう捕まんじゃねえぞ ギン",
+      "shownStart": 482.07,
+      "method": "cover",
+      "end": 484.512965
+    },
+    {
+      "kind": "retime",
+      "n": 289,
+      "text": "ありがとう サンジさん\\Nこの恩は忘れねえ",
+      "shownStart": 483.59,
+      "method": "cover",
+      "start": 484.512965
+    },
+    {
+      "kind": "missing",
+      "n": 291,
+      "text": "おーい ３番上がったぞ！",
+      "at": 494.07721
+    },
+    {
+      "kind": "retime",
+      "n": 292,
+      "text": "俺はルフィ\\N今から俺が雑用だ",
+      "shownStart": 499.66,
+      "method": "interp1",
+      "end": 503.231921
+    },
+    {
+      "kind": "retime",
+      "n": 293,
+      "text": "どうぞ よろしく",
+      "shownStart": 502.83,
+      "method": "cover",
+      "start": 503.367854
+    },
+    {
+      "kind": "missing",
+      "n": 298,
+      "text": "ボーッとしてっからだ",
+      "at": 529.408297
+    },
+    {
+      "kind": "missing",
+      "n": 327,
+      "text": "できるな？\\Nむいっ",
+      "at": 609.195116
+    },
+    {
+      "kind": "retime",
+      "n": 336,
+      "text": "食らえ",
+      "shownStart": 632.622,
+      "method": "interp",
+      "start": 633.990115
+    },
+    {
+      "kind": "retime",
+      "n": 365,
+      "text": "なるほど",
+      "shownStart": 733.369,
+      "method": "cover",
+      "start": 733.730725
+    },
+    {
+      "kind": "retime",
+      "n": 365,
+      "text": "なるほど",
+      "shownStart": 733.730725,
+      "method": "cover",
+      "start": 734.034148
+    },
+    {
+      "kind": "retime",
+      "n": 365,
+      "text": "なるほど",
+      "shownStart": 734.034148,
+      "method": "cover",
+      "end": 735.732573
+    },
+    {
+      "kind": "missing",
+      "n": 369,
+      "text": "は… はい",
+      "at": 745.151612
+    },
+    {
+      "kind": "retime",
+      "n": 369,
+      "text": "は… はい",
+      "shownStart": 745.151612,
+      "method": null,
+      "start": 745.601871
+    },
+    {
+      "kind": "retime",
+      "n": 372,
+      "text": "何だ",
+      "shownStart": 754.43,
+      "end": 756.123
+    },
+    {
+      "kind": "exclude",
+      "n": 413,
+      "text": "うう… くっ くくっ",
+      "shownStart": 755.424,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 464,
+      "text": "ありがとう！\\Nああ ああ…",
+      "at": 890.941968
+    },
+    {
+      "kind": "retime",
+      "n": 465,
+      "text": "お前ら 払え\\Nぐあっ！",
+      "shownStart": 891.49,
+      "method": "cover",
+      "start": 893.407095
+    },
+    {
+      "kind": "missing",
+      "n": 469,
+      "text": "はい",
+      "at": 904.434119
+    },
+    {
+      "kind": "missing",
+      "n": 505,
+      "text": "だが 妙だ\\Nうん？",
+      "at": 1007.321665
+    },
+    {
+      "kind": "retime",
+      "n": 556,
+      "text": "ドン…",
+      "shownStart": 1202.05,
+      "method": "cover",
+      "start": 1197.820955
+    },
+    {
+      "kind": "retime",
+      "n": 556,
+      "text": "ドン…",
+      "shownStart": 1197.820955,
+      "method": "cover",
+      "end": 1199.689089
+    },
+    {
+      "kind": "missing",
+      "n": 564,
+      "text": "ほらよ",
+      "at": 1220.989159
+    },
+    {
+      "kind": "retime",
+      "n": 655,
+      "text": "そう それでいい",
+      "shownStart": 1512.95,
+      "method": "cover",
+      "start": 1512.149615
+    },
+    {
+      "kind": "missing",
+      "n": 693,
+      "text": "ドン！",
+      "at": 1646.147153
+    },
+    {
+      "kind": "missing",
+      "n": 706,
+      "text": "うっとうしいわ！",
+      "at": 1687.477449
+    },
+    {
+      "kind": "missing",
+      "n": 707,
+      "text": "コラ！",
+      "at": 1689.409473
+    },
+    {
+      "kind": "retime",
+      "n": 767,
+      "text": "オーナー･ゼフ！",
+      "shownStart": 1767.245,
+      "method": "interp1",
+      "start": 1766.347897
+    }
+  ]
+}

@@ -1,0 +1,248 @@
+{
+  "episode": "[One Pace][31-34] Syrup Village 04 [1080p][A5E4EBC0]",
+  "video": "[One Pace][31-34] Syrup Village 04 [1080p][A5E4EBC0].mkv",
+  "tool": "opace-reviewer",
+  "count": 32,
+  "observations": [
+    {
+      "kind": "retime",
+      "n": 120,
+      "text": "クラハドール？",
+      "shownStart": 160.95,
+      "method": "rescue",
+      "end": 163.589384
+    },
+    {
+      "kind": "retime",
+      "n": 121,
+      "text": "ハッ メ… メリー！",
+      "shownStart": null,
+      "start": 165.435,
+      "end": 168.074
+    },
+    {
+      "kind": "missing",
+      "n": 157,
+      "text": "はい",
+      "at": 311.960754
+    },
+    {
+      "kind": "retime",
+      "n": 157,
+      "text": "はい",
+      "shownStart": 311.960754,
+      "method": null,
+      "end": 312.645324
+    },
+    {
+      "kind": "exclude",
+      "n": 186,
+      "text": "う… ううっ\\Nやりやがった あのガキ",
+      "shownStart": 381.605,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 187,
+      "text": "これじゃ計画もままならねえ",
+      "shownStart": 386.568,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 192,
+      "text": "まだ 切り札がいた",
+      "shownStart": 401.333,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 249,
+      "text": "キャット･ザ…",
+      "at": 568.498387
+    },
+    {
+      "kind": "missing",
+      "n": 258,
+      "text": "おうともよ",
+      "at": 597.291014
+    },
+    {
+      "kind": "retime",
+      "n": 310,
+      "text": "最悪だ…",
+      "shownStart": 772.422,
+      "method": "rescue+snap",
+      "end": 773.492593
+    },
+    {
+      "kind": "retime",
+      "n": 312,
+      "text": "何だ このザマは",
+      "shownStart": 787.09,
+      "method": "cover",
+      "start": 788.385753
+    },
+    {
+      "kind": "retime",
+      "n": 355,
+      "text": "だがよ",
+      "shownStart": 814.11,
+      "method": "cover",
+      "end": 815.840429
+    },
+    {
+      "kind": "retime",
+      "n": 356,
+      "text": "あ… あんた 言ったよな",
+      "shownStart": 815.09,
+      "method": "cover",
+      "end": 818.46756
+    },
+    {
+      "kind": "retime",
+      "n": 356,
+      "text": "あ… あんた 言ったよな",
+      "shownStart": 815.09,
+      "method": "cover",
+      "start": 816.980234
+    },
+    {
+      "kind": "retime",
+      "n": 357,
+      "text": "そ… その小僧\\Nほっといても問題ねえって",
+      "shownStart": 816.749,
+      "method": "cover+snap",
+      "start": 818.46756
+    },
+    {
+      "kind": "retime",
+      "n": 357,
+      "text": "そ… その小僧\\Nほっといても問題ねえって",
+      "shownStart": 818.46756,
+      "method": "cover+snap",
+      "end": 821.855
+    },
+    {
+      "kind": "missing",
+      "n": 373,
+      "text": "おおともよ",
+      "at": 860.345349
+    },
+    {
+      "kind": "retime",
+      "n": 391,
+      "text": "回り…",
+      "shownStart": 917.887,
+      "method": "cover+snap",
+      "end": 919.218878
+    },
+    {
+      "kind": "retime",
+      "n": 392,
+      "text": "込まれたか",
+      "shownStart": 917.63,
+      "method": "cover+snap",
+      "start": 919.323062
+    },
+    {
+      "kind": "retime",
+      "n": 392,
+      "text": "込まれたか",
+      "shownStart": 919.323062,
+      "method": "cover+snap",
+      "end": 920.422075
+    },
+    {
+      "kind": "exclude",
+      "n": 397,
+      "text": "抜き足？",
+      "shownStart": 928.692,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 452,
+      "text": "あと３分だ",
+      "shownStart": 1173.538,
+      "method": "cover+snap",
+      "start": 1175.764229
+    },
+    {
+      "kind": "retime",
+      "n": 452,
+      "text": "あと３分だ",
+      "shownStart": 1175.764229,
+      "method": "cover+snap",
+      "start": 1175.819808
+    },
+    {
+      "kind": "retime",
+      "n": 452,
+      "text": "あと３分だ",
+      "shownStart": 1175.819808,
+      "method": "cover+snap",
+      "start": 1176.17891
+    },
+    {
+      "kind": "retime",
+      "n": 452,
+      "text": "あと３分だ",
+      "shownStart": 1176.17891,
+      "method": "cover+snap",
+      "end": 1179.179067
+    },
+    {
+      "kind": "retime",
+      "n": 455,
+      "text": "あ… あいつ\\Nぶっ殺してやる ゴホッ",
+      "shownStart": 1184.439,
+      "method": "cover+snap",
+      "start": 1182.92312
+    },
+    {
+      "kind": "retime",
+      "n": 465,
+      "text": "殺れ ブチ",
+      "shownStart": 1231.345722,
+      "method": "cover",
+      "start": 1229.9161
+    },
+    {
+      "kind": "retime",
+      "n": 465,
+      "text": "殺れ ブチ",
+      "shownStart": 1229.9161,
+      "method": "cover",
+      "end": 1231.396242
+    },
+    {
+      "kind": "missing",
+      "n": 538,
+      "text": "カヤ！",
+      "at": 1459.08795
+    },
+    {
+      "kind": "retime",
+      "n": 576,
+      "text": "だから その心の平穏を\\N永遠に手に入れたいんですよ",
+      "shownStart": 1600.71,
+      "method": "cover",
+      "start": 1614.22723
+    },
+    {
+      "kind": "missing",
+      "n": 588,
+      "text": "カヤ",
+      "at": 1654.870812
+    },
+    {
+      "kind": "retime",
+      "n": 592,
+      "text": "なるほど　この３年で\\Nあなたも立派になられたものだ",
+      "shownStart": 1660.67,
+      "method": "cover",
+      "start": 1659.943653
+    }
+  ]
+}

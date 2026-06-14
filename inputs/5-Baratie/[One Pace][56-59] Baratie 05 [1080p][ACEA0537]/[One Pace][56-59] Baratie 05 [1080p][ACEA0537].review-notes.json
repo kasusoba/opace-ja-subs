@@ -1,0 +1,109 @@
+{
+  "episode": "[One Pace][56-59] Baratie 05 [1080p][ACEA0537]",
+  "video": "[One Pace][56-59] Baratie 05 [1080p][ACEA0537].mkv",
+  "tool": "opace-reviewer",
+  "count": 15,
+  "observations": [
+    {
+      "kind": "missing",
+      "n": 51,
+      "text": "サンジ！",
+      "at": 235.91932
+    },
+    {
+      "kind": "missing",
+      "n": 75,
+      "text": "本当にあればな\\Nえっ？",
+      "at": 309.05853
+    },
+    {
+      "kind": "missing",
+      "n": 117,
+      "text": "ううっ サンジ…",
+      "at": 439.136435
+    },
+    {
+      "kind": "missing",
+      "n": 118,
+      "text": "ダメだ　抵抗するな",
+      "at": 440.928992
+    },
+    {
+      "kind": "missing",
+      "n": 124,
+      "text": "サンジ",
+      "at": 456.890924
+    },
+    {
+      "kind": "exclude",
+      "n": 137,
+      "text": "こんなとこで…",
+      "shownStart": 504.124,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 144,
+      "text": "サンジ",
+      "at": 538.886958
+    },
+    {
+      "kind": "retime",
+      "n": 153,
+      "text": "かいぞ… アイタッ\\Nイテテテ…",
+      "shownStart": 604.32,
+      "method": "rescue",
+      "start": 605.173959
+    },
+    {
+      "kind": "retime",
+      "n": 209,
+      "text": "最後のパン…",
+      "shownStart": 832.325,
+      "method": "cover",
+      "start": 833.428874
+    },
+    {
+      "kind": "retime",
+      "n": 209,
+      "text": "最後のパン…",
+      "shownStart": 833.428874,
+      "method": "cover",
+      "end": 835.136142
+    },
+    {
+      "kind": "retime",
+      "n": 276,
+      "text": "だから… 死ぬな",
+      "shownStart": 1118.29,
+      "method": "cover",
+      "start": 1117.697588
+    },
+    {
+      "kind": "missing",
+      "n": 280,
+      "text": "ジジイを…",
+      "at": 1136.845652
+    },
+    {
+      "kind": "retime",
+      "n": 281,
+      "text": "クソジジイを助けてくれ！",
+      "shownStart": 1138.93,
+      "method": "cover",
+      "start": 1138.262882
+    },
+    {
+      "kind": "missing",
+      "n": 306,
+      "text": "ゴムゴムのーっ！",
+      "at": 1223.774316
+    },
+    {
+      "kind": "missing",
+      "n": 307,
+      "text": "オノ！",
+      "at": 1227.14984
+    }
+  ]
+}

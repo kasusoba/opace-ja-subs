@@ -2,7 +2,7 @@
   "episode": "[One Pace][35-37] Syrup Village 05 [1080p][707146C8]",
   "video": "[One Pace][35-37] Syrup Village 05 [1080p][707146C8].mkv",
   "tool": "opace-reviewer",
-  "count": 9,
+  "count": 38,
   "observations": [
     {
       "kind": "exclude",
@@ -67,6 +67,218 @@
       "shownStart": 240.335694,
       "method": "interp",
       "end": 241.913007
+    },
+    {
+      "kind": "missing",
+      "n": 99,
+      "text": "またかよ",
+      "at": 316.36131
+    },
+    {
+      "kind": "exclude",
+      "n": 102,
+      "text": "うぬぬぬ…",
+      "shownStart": 344.827,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 107,
+      "text": "チクショー",
+      "shownStart": 348.248,
+      "method": "interp1"
+    },
+    {
+      "kind": "wrong",
+      "n": 109,
+      "text": "チクショー　チク… ショ…",
+      "shownStart": 356.18,
+      "at": 356.667469,
+      "shouldBe": "#107 チクショー"
+    },
+    {
+      "kind": "missing",
+      "n": 108,
+      "text": "力が入らねえ\\Nチクショー　チクショー",
+      "at": 359.332722
+    },
+    {
+      "kind": "retime",
+      "n": 108,
+      "text": "力が入らねえ\\Nチクショー　チクショー",
+      "shownStart": 359.332722,
+      "method": null,
+      "start": 360.247024
+    },
+    {
+      "kind": "missing",
+      "n": 111,
+      "text": "あっ… はい！",
+      "at": 373.046406
+    },
+    {
+      "kind": "retime",
+      "n": 128,
+      "text": "これは キャプテン命令だ",
+      "shownStart": 420.980443,
+      "method": "cover",
+      "start": 418.314158
+    },
+    {
+      "kind": "retime",
+      "n": 128,
+      "text": "これは キャプテン命令だ",
+      "shownStart": 420.17,
+      "method": "cover",
+      "start": 420.980443
+    },
+    {
+      "kind": "missing",
+      "n": 141,
+      "text": "ヘヘッ… ざまあみろ",
+      "at": 449.934064
+    },
+    {
+      "kind": "retime",
+      "n": 150,
+      "text": "ブチ",
+      "shownStart": 485.83,
+      "method": "cover",
+      "start": 486.398679
+    },
+    {
+      "kind": "retime",
+      "n": 150,
+      "text": "ブチ",
+      "shownStart": 486.398679,
+      "method": "cover",
+      "end": 487.447002
+    },
+    {
+      "kind": "missing",
+      "n": 154,
+      "text": "どけーっ",
+      "at": 497.21426
+    },
+    {
+      "kind": "retime",
+      "n": 176,
+      "text": "ウソップ！",
+      "shownStart": 665.3,
+      "method": "interp1",
+      "start": 667.16794
+    },
+    {
+      "kind": "retime",
+      "n": 176,
+      "text": "ウソップ！",
+      "shownStart": 667.16794,
+      "method": "interp1",
+      "end": 668.988134
+    },
+    {
+      "kind": "retime",
+      "n": 177,
+      "text": "お前は あいつらのとこに行け",
+      "shownStart": 668.47,
+      "method": "cover",
+      "start": 668.988134
+    },
+    {
+      "kind": "retime",
+      "n": 177,
+      "text": "お前は あいつらのとこに行け",
+      "shownStart": 668.988134,
+      "method": "cover",
+      "start": 670.364658
+    },
+    {
+      "kind": "retime",
+      "n": 202,
+      "text": "俺はウソップ海賊団の\\Nキャプテンで―",
+      "shownStart": 755.57,
+      "method": "cover",
+      "end": 759.069755
+    },
+    {
+      "kind": "wrong",
+      "n": 366,
+      "text": "ウソップ海賊団！",
+      "shownStart": 756.53,
+      "at": 758.055122,
+      "shouldBe": "#202 俺はウソップ海賊団の\nキャプテンで―"
+    },
+    {
+      "kind": "retime",
+      "n": 203,
+      "text": "俺は勇敢なる海の戦士だ！",
+      "shownStart": 759.05,
+      "method": "cover",
+      "start": 759.069755
+    },
+    {
+      "kind": "missing",
+      "n": 234,
+      "text": "ゴムゴムのムチ！",
+      "at": 874.778892
+    },
+    {
+      "kind": "retime",
+      "n": 235,
+      "text": "…とピストル！",
+      "shownStart": 877.792,
+      "method": "interp",
+      "start": 878.592179
+    },
+    {
+      "kind": "retime",
+      "n": 235,
+      "text": "…とピストル！",
+      "shownStart": 878.592179,
+      "method": "interp",
+      "end": 880.45295
+    },
+    {
+      "kind": "exclude",
+      "n": 406,
+      "text": "どこだ？ チビども！",
+      "shownStart": 890.92,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 423,
+      "text": "ありがとう\\N助けてくれてうれしかった",
+      "shownStart": 944.97,
+      "method": "cover",
+      "start": 944.456725
+    },
+    {
+      "kind": "exclude",
+      "n": 431,
+      "text": "ガキども ナメやがって",
+      "shownStart": 969.89,
+      "method": "rescue"
+    },
+    {
+      "kind": "exclude",
+      "n": 281,
+      "text": "砲撃がやんだ",
+      "shownStart": 1158.532,
+      "method": "cover+snap"
+    },
+    {
+      "kind": "exclude",
+      "n": 282,
+      "text": "どうしたってんだよ",
+      "shownStart": 1159.542,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 281,
+      "text": "砲撃がやんだ",
+      "at": 1164.204066
     }
   ]
 }

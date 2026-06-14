@@ -1,0 +1,65 @@
+{
+  "episode": "[One Pace][69-71] Arlong Park 01 [1080p][C269DEF5]",
+  "video": "[One Pace][69-71] Arlong Park 01 [1080p][C269DEF5].mkv",
+  "tool": "opace-reviewer",
+  "count": 8,
+  "observations": [
+    {
+      "kind": "retime",
+      "n": 112,
+      "text": "実に世渡りがうまい",
+      "shownStart": 449.463,
+      "method": "cover+snap1",
+      "start": 446.596182
+    },
+    {
+      "kind": "retime",
+      "n": 112,
+      "text": "実に世渡りがうまい",
+      "shownStart": 446.596182,
+      "method": "cover+snap1",
+      "end": 448.948967
+    },
+    {
+      "kind": "retime",
+      "n": 113,
+      "text": "フッハハハハハッ お互いにな",
+      "shownStart": 448.749,
+      "method": "rescue+snap",
+      "start": 448.948967
+    },
+    {
+      "kind": "retime",
+      "n": 113,
+      "text": "フッハハハハハッ お互いにな",
+      "shownStart": 448.948967,
+      "method": "rescue+snap",
+      "end": 453.264099
+    },
+    {
+      "kind": "missing",
+      "n": 203,
+      "text": "魚人…",
+      "at": 787.729084
+    },
+    {
+      "kind": "missing",
+      "n": 220,
+      "text": "おいっ せめて縄をほどいてけえ",
+      "at": 835.3308
+    },
+    {
+      "kind": "missing",
+      "n": 272,
+      "text": "魚人だ",
+      "at": 1004.766248
+    },
+    {
+      "kind": "exclude",
+      "n": 510,
+      "text": "どう？ 分かったでしょう",
+      "shownStart": 1428.12,
+      "method": "interp1"
+    }
+  ]
+}

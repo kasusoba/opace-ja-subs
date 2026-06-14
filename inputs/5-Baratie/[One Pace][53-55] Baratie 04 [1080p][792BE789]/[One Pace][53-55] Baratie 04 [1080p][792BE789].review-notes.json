@@ -1,0 +1,112 @@
+{
+  "episode": "[One Pace][53-55] Baratie 04 [1080p][792BE789]",
+  "video": "[One Pace][53-55] Baratie 04 [1080p][792BE789].mkv",
+  "tool": "opace-reviewer",
+  "count": 14,
+  "observations": [
+    {
+      "kind": "exclude",
+      "n": 27,
+      "text": "ああ もちろんだ",
+      "shownStart": 110.651,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 28,
+      "text": "俺は絶対になるぞ 海賊王にな",
+      "shownStart": 112.11,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 94,
+      "text": "ほら 行け\\Nお… おう",
+      "at": 276.654242
+    },
+    {
+      "kind": "missing",
+      "n": 101,
+      "text": "大鎌！",
+      "at": 294.90118
+    },
+    {
+      "kind": "retime",
+      "n": 145,
+      "text": "やった いいぞ",
+      "shownStart": 448.13,
+      "method": "cover",
+      "start": 448.899659
+    },
+    {
+      "kind": "retime",
+      "n": 145,
+      "text": "やった いいぞ",
+      "shownStart": 448.899659,
+      "method": "cover",
+      "end": 450.113672
+    },
+    {
+      "kind": "retime",
+      "n": 146,
+      "text": "パティ カルネ やっちまえ",
+      "shownStart": 449.221,
+      "method": "cover+snap",
+      "start": 450.113672
+    },
+    {
+      "kind": "retime",
+      "n": 177,
+      "text": "やるな",
+      "shownStart": 559.043,
+      "method": "cover+snap",
+      "start": 558.199988
+    },
+    {
+      "kind": "retime",
+      "n": 177,
+      "text": "やるな",
+      "shownStart": 558.199988,
+      "method": "cover+snap",
+      "end": 559.099905
+    },
+    {
+      "kind": "retime",
+      "n": 264,
+      "text": "たかがコックに\\N俺たちがやられるか",
+      "shownStart": 801.64,
+      "method": "cover+snap",
+      "end": 806.153285
+    },
+    {
+      "kind": "missing",
+      "n": 345,
+      "text": "火だ　火だぞ",
+      "at": 1029.910056
+    },
+    {
+      "kind": "retime",
+      "n": 345,
+      "text": "火だ　火だぞ",
+      "shownStart": 1029.910056,
+      "method": null,
+      "end": 1031.966701
+    },
+    {
+      "kind": "retime",
+      "n": 346,
+      "text": "ファイヤーパールを\\Nもっとくべねば",
+      "shownStart": 1031.11,
+      "method": "cover",
+      "start": 1032.42149
+    },
+    {
+      "kind": "retime",
+      "n": 354,
+      "text": "これぐらいは 造作もねえ",
+      "shownStart": 1058.49,
+      "method": "cover",
+      "end": 1061.478834
+    }
+  ]
+}

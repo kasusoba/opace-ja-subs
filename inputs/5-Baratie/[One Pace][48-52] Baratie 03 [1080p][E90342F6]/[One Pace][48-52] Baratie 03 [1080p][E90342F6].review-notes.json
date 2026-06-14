@@ -1,0 +1,273 @@
+{
+  "episode": "[One Pace][48-52] Baratie 03 [1080p][E90342F6]",
+  "video": "[One Pace][48-52] Baratie 03 [1080p][E90342F6].mkv",
+  "tool": "opace-reviewer",
+  "count": 37,
+  "observations": [
+    {
+      "kind": "missing",
+      "n": 42,
+      "text": "貴様は“赫足のゼフ”",
+      "at": 110.420008
+    },
+    {
+      "kind": "retime",
+      "n": 42,
+      "text": "貴様は“赫足のゼフ”",
+      "shownStart": 110.420008,
+      "method": null,
+      "end": 111.824429
+    },
+    {
+      "kind": "retime",
+      "n": 212,
+      "text": "何！？",
+      "shownStart": 595.25,
+      "method": "cover",
+      "start": 596.843646
+    },
+    {
+      "kind": "missing",
+      "n": 235,
+      "text": "あっ… ああ\\N俺の捜してる男さ",
+      "at": 683.751776
+    },
+    {
+      "kind": "missing",
+      "n": 252,
+      "text": "おい ルフィ？",
+      "at": 728.471198
+    },
+    {
+      "kind": "retime",
+      "n": 288,
+      "text": "他に異議のあるやつは\\Nいねえな？",
+      "shownStart": 850.418,
+      "method": "cover+snap",
+      "start": 849.736136
+    },
+    {
+      "kind": "retime",
+      "n": 291,
+      "text": "まずは この―",
+      "shownStart": 864.738,
+      "method": "cover+snap",
+      "end": 866.998758
+    },
+    {
+      "kind": "retime",
+      "n": 292,
+      "text": "いつ沈むとも限らんボロ船を捨て\\Nレストランを乗っ取れ",
+      "shownStart": 866.65,
+      "method": "cover",
+      "start": 866.998758
+    },
+    {
+      "kind": "missing",
+      "n": 298,
+      "text": "どけどけ カスども！",
+      "at": 901.428371
+    },
+    {
+      "kind": "missing",
+      "n": 313,
+      "text": "マズい",
+      "at": 951.657645
+    },
+    {
+      "kind": "retime",
+      "n": 356,
+      "text": "そいつは 一体\\Nどういうことなんだ",
+      "shownStart": 1034.69,
+      "method": "cover",
+      "start": 1033.831569
+    },
+    {
+      "kind": "retime",
+      "n": 356,
+      "text": "そいつは 一体\\Nどういうことなんだ",
+      "shownStart": 1033.831569,
+      "method": "cover",
+      "start": 1034.155746
+    },
+    {
+      "kind": "retime",
+      "n": 1025,
+      "text": "ベルメールさん…",
+      "shownStart": 1430.138,
+      "method": "cover",
+      "start": 1430.843579
+    },
+    {
+      "kind": "retime",
+      "n": 1025,
+      "text": "ベルメールさん…",
+      "shownStart": 1430.843579,
+      "method": "cover",
+      "end": 1432.495556
+    },
+    {
+      "kind": "exclude",
+      "n": 1365,
+      "text": "やみくもに力ずくでやりゃあいい\\Nってもんじゃねえ",
+      "shownStart": 1432.345,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 1366,
+      "text": "どんな刀だろうと",
+      "shownStart": 1435.723,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 480,
+      "text": "こっ… こいつ ゾロだ\\N三刀流のロロノア･ゾロだ！",
+      "shownStart": 1439.91,
+      "end": 1445.778
+    },
+    {
+      "kind": "exclude",
+      "n": 1369,
+      "text": "ロロノア･ゾロさんよ",
+      "shownStart": 1444.19,
+      "method": "rescue"
+    },
+    {
+      "kind": "exclude",
+      "n": 1101,
+      "text": "聞こえなかったのかよ あんた",
+      "shownStart": 1621.234,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 1102,
+      "text": "賞金稼ぎ同士のルールはなあ…",
+      "shownStart": 1622.861,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 1108,
+      "text": "世界一の剣豪になることを\\N目指して旅をしている",
+      "shownStart": 1638.877,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 544,
+      "text": "私だって 世界一の\\N剣豪になりたいよ",
+      "shownStart": 1647.61,
+      "method": "cover",
+      "start": 1647.6,
+      "end": 1650.9
+    },
+    {
+      "kind": "exclude",
+      "n": 1111,
+      "text": "世界一の剣豪？",
+      "shownStart": 1648.47,
+      "method": "rescue"
+    },
+    {
+      "kind": "retime",
+      "n": 558,
+      "text": "俺 あいつの分も強くなるから",
+      "shownStart": 1680.27,
+      "method": "cover",
+      "start": 1679.7,
+      "end": 1683.7
+    },
+    {
+      "kind": "exclude",
+      "n": 1395,
+      "text": "鬼…",
+      "shownStart": 1693.766,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 1396,
+      "text": "斬り！",
+      "shownStart": 1694.808,
+      "method": "interp1"
+    },
+    {
+      "kind": "exclude",
+      "n": 1398,
+      "text": "これが… 三刀流",
+      "shownStart": 1699.98,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 568,
+      "text": "弱き者よ\\Nグッ",
+      "at": 1715.766303
+    },
+    {
+      "kind": "missing",
+      "n": 581,
+      "text": "狩りー！",
+      "at": 1766.488363
+    },
+    {
+      "kind": "missing",
+      "n": 609,
+      "text": "散れ",
+      "at": 1875.823412
+    },
+    {
+      "kind": "missing",
+      "n": 610,
+      "text": "三･千･世･界！",
+      "at": 1876.712959
+    },
+    {
+      "kind": "missing",
+      "n": 617,
+      "text": "ゾロー！",
+      "at": 1909.87871
+    },
+    {
+      "kind": "retime",
+      "n": 617,
+      "text": "ゾロー！",
+      "shownStart": 1909.87871,
+      "method": null,
+      "start": 1910.522375
+    },
+    {
+      "kind": "retime",
+      "n": 617,
+      "text": "ゾロー！",
+      "shownStart": 1910.522375,
+      "method": null,
+      "start": 1910.868141
+    },
+    {
+      "kind": "retime",
+      "n": 653,
+      "text": "超えてみよ ロロノア･ゾロ！",
+      "shownStart": 2031.81,
+      "method": "cover",
+      "end": 2035.544578
+    },
+    {
+      "kind": "retime",
+      "n": 670,
+      "text": "ル… ルフィ",
+      "shownStart": 2070.438942,
+      "method": null,
+      "start": 2069.578606
+    },
+    {
+      "kind": "missing",
+      "n": 670,
+      "text": "ル… ルフィ",
+      "at": 2070.438942
+    }
+  ]
+}

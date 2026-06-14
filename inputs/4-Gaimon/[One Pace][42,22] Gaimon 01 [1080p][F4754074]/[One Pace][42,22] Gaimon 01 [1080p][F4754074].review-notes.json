@@ -1,0 +1,91 @@
+{
+  "episode": "[One Pace][42,22] Gaimon 01 [1080p][F4754074]",
+  "video": "[One Pace][42,22] Gaimon 01 [1080p][F4754074].mkv",
+  "tool": "opace-reviewer",
+  "count": 11,
+  "observations": [
+    {
+      "kind": "missing",
+      "n": 51,
+      "text": "んっ 何？",
+      "at": 236.61905
+    },
+    {
+      "kind": "retime",
+      "n": 187,
+      "text": "バカみてえ",
+      "shownStart": 611.77,
+      "method": "cover",
+      "end": 613.068536
+    },
+    {
+      "kind": "retime",
+      "n": 188,
+      "text": "何だと？ てめえ",
+      "shownStart": 612.49,
+      "method": "cover",
+      "start": 613.068536
+    },
+    {
+      "kind": "exclude",
+      "n": 303,
+      "text": "何やってんだ？ あいつ",
+      "shownStart": 975.709,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 341,
+      "text": "麦わら…",
+      "at": 1087.381511
+    },
+    {
+      "kind": "retime",
+      "n": 341,
+      "text": "麦わら…",
+      "shownStart": 1087.381511,
+      "method": null,
+      "start": 1087.834235
+    },
+    {
+      "kind": "retime",
+      "n": 350,
+      "text": "ありがとよ うう…",
+      "shownStart": 1116.49,
+      "method": "cover",
+      "start": 1118.763972
+    },
+    {
+      "kind": "retime",
+      "n": 364,
+      "text": "じゃあな 達者でな",
+      "shownStart": 1187.031,
+      "method": "rescue+snap",
+      "start": 1189.198489
+    },
+    {
+      "kind": "retime",
+      "n": 364,
+      "text": "じゃあな 達者でな",
+      "shownStart": 1189.198489,
+      "method": "rescue+snap",
+      "end": 1192.666873
+    },
+    {
+      "kind": "retime",
+      "n": 364,
+      "text": "じゃあな 達者でな",
+      "shownStart": 1189.198489,
+      "method": "rescue+snap",
+      "end": 1192.666164
+    },
+    {
+      "kind": "retime",
+      "n": 365,
+      "text": "さようなら",
+      "shownStart": 1192.255,
+      "method": "cover+snap",
+      "start": 1192.666164
+    }
+  ]
+}

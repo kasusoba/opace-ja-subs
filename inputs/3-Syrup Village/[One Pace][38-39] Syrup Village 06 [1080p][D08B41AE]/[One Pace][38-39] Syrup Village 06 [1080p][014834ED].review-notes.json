@@ -1,0 +1,81 @@
+{
+  "episode": "[One Pace][38-39] Syrup Village 06 [1080p][014834ED]",
+  "video": "[One Pace][38-39] Syrup Village 06 [1080p][014834ED].mkv",
+  "tool": "opace-reviewer",
+  "count": 10,
+  "observations": [
+    {
+      "kind": "retime",
+      "n": 237,
+      "text": "それ！",
+      "shownStart": 215.664,
+      "method": "cover+snap",
+      "start": 214.216161
+    },
+    {
+      "kind": "retime",
+      "n": 237,
+      "text": "それ！",
+      "shownStart": 214.216161,
+      "method": "cover+snap",
+      "end": 216.715847
+    },
+    {
+      "kind": "missing",
+      "n": 240,
+      "text": "とどめだ！ 催眠術師",
+      "at": 225.332842
+    },
+    {
+      "kind": "retime",
+      "n": 174,
+      "text": "やめてください\\Nキャプテン･クロ！",
+      "shownStart": 528.09,
+      "method": "cover",
+      "end": 530.688584
+    },
+    {
+      "kind": "missing",
+      "n": 176,
+      "text": "杓死！",
+      "at": 531.030343
+    },
+    {
+      "kind": "missing",
+      "n": 198,
+      "text": "ルフィ",
+      "at": 645.742852
+    },
+    {
+      "kind": "retime",
+      "n": 198,
+      "text": "ルフィ",
+      "shownStart": 645.742852,
+      "method": null,
+      "start": 646.317873
+    },
+    {
+      "kind": "exclude",
+      "n": 332,
+      "text": "いい気になるな",
+      "shownStart": 834.571,
+      "method": "interp1"
+    },
+    {
+      "kind": "missing",
+      "n": 366,
+      "text": "ああっ キャプテン！",
+      "at": 927.658747
+    },
+    {
+      "kind": "trim",
+      "n": 370,
+      "text": "俺の 俺の計画は\\N鐘！",
+      "shownStart": 955.638,
+      "method": "cover",
+      "keep": "俺の 俺の計画は",
+      "trimStart": 0,
+      "trimEnd": 8
+    }
+  ]
+}

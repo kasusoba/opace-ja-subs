@@ -1,0 +1,137 @@
+{
+  "episode": "[One Pace][72-74] Arlong Park 02 [1080p][E419D54E]",
+  "video": "[One Pace][72-74] Arlong Park 02 [1080p][E419D54E].mkv",
+  "tool": "opace-reviewer",
+  "count": 19,
+  "observations": [
+    {
+      "kind": "exclude",
+      "n": 51,
+      "text": "なんて愛だ",
+      "shownStart": 48.73,
+      "method": "cover"
+    },
+    {
+      "kind": "exclude",
+      "n": 23,
+      "text": "何かいるぜ",
+      "shownStart": 533.025,
+      "method": "interp"
+    },
+    {
+      "kind": "missing",
+      "n": 50,
+      "text": "なあ そうだろ？",
+      "at": 608.050409
+    },
+    {
+      "kind": "missing",
+      "n": 51,
+      "text": "なんて愛だ",
+      "at": 609.35895
+    },
+    {
+      "kind": "missing",
+      "n": 56,
+      "text": "死ね コラーッ",
+      "at": 621.652781
+    },
+    {
+      "kind": "missing",
+      "n": 64,
+      "text": "首肉シュート！",
+      "at": 646.650511
+    },
+    {
+      "kind": "retime",
+      "n": 412,
+      "text": "必殺　卵星！",
+      "shownStart": 814.876,
+      "method": "cover",
+      "end": 818.728883
+    },
+    {
+      "kind": "exclude",
+      "n": 414,
+      "text": "卵だ 腐ってやがる",
+      "shownStart": 822.233,
+      "method": "interp1"
+    },
+    {
+      "kind": "retime",
+      "n": 494,
+      "text": "ココヤシ村だ",
+      "shownStart": null,
+      "start": 863.624
+    },
+    {
+      "kind": "missing",
+      "n": 483,
+      "text": "海賊狩りか\\N俺の首を取りに来たのか",
+      "at": 925.121573
+    },
+    {
+      "kind": "missing",
+      "n": 484,
+      "text": "ち… 違う 来たんじゃねえ\\Nあ… あいつが ゾロだったんだ",
+      "at": 931.734019
+    },
+    {
+      "kind": "missing",
+      "n": 485,
+      "text": "何？",
+      "at": 937.302566
+    },
+    {
+      "kind": "missing",
+      "n": 486,
+      "text": "捕まえた あの腹巻きの男が\\Nロロノア… ハア",
+      "at": 938.518022
+    },
+    {
+      "kind": "trim",
+      "n": 488,
+      "text": "チュッ 捕まえてきたぜ\\Nアーロンさん",
+      "shownStart": 943.432,
+      "method": "interp1",
+      "keep": "捕まえてきたぜ",
+      "trimStart": 4,
+      "trimEnd": 11
+    },
+    {
+      "kind": "retime",
+      "n": 488,
+      "text": "チュッ 捕まえてきたぜ\\Nアーロンさん",
+      "shownStart": 943.432,
+      "method": "interp1",
+      "start": 947.74604,
+      "end": 950.391
+    },
+    {
+      "kind": "retime",
+      "n": 488,
+      "text": "チュッ 捕まえてきたぜ\\Nアーロンさん",
+      "shownStart": 947.74604,
+      "method": "interp1",
+      "end": 949.024941
+    },
+    {
+      "kind": "missing",
+      "n": 490,
+      "text": "こ… こりゃ い… 一体",
+      "at": 950.687094
+    },
+    {
+      "kind": "missing",
+      "n": 555,
+      "text": "ナ… ナミ",
+      "at": 1113.272081
+    },
+    {
+      "kind": "missing",
+      "n": 569,
+      "text": "知ってるさ\\Nヒイイ うう",
+      "at": 1153.94252
+    }
+  ]
+}
