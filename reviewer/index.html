@@ -933,6 +933,17 @@ let listHover = false;
 $("#list").addEventListener("pointerenter", () => listHover = true);
 $("#list").addEventListener("pointerleave", () => listHover = false);
 
+// On an explicit seek (prev/next key, timeline scrub, click-to-seek) snap the list
+// to the landed line *instantly* and regardless of listHover — a seek is navigation
+// intent, so you always want to see where you are. (Playback keeps the loop's smooth
+// scroll above; the loop only fires on a line change, which can lag behind a seek.)
+video.addEventListener("seeked", () => {
+  if (!$("#follow").checked) return;
+  const t = video.currentTime, act = activeAt(t), [prev] = bracket(t);
+  const cur = act[act.length - 1] || prev;
+  if (cur && rowEls[cur.n]) rowEls[cur.n].scrollIntoView({ block: "center" });
+});
+
 // ---- flagging modal --------------------------------------------------------
 // each kind declares its fields; the modal renders them dynamically. a note
 // textarea is always appended. fields with type "time" get a ⟲now button.
@@ -1472,8 +1483,13 @@ let binds = loadBinds();
 let seekInterval = parseFloat(localStorage.getItem("opace-review:interval")) || 3;
 function saveBinds() { try { localStorage.setItem("opace-review:keys", JSON.stringify(binds)); } catch (e) {} }
 
-function prevSubStart() { const t = video.currentTime - 0.25; let r = null;
-  for (const l of emitted) { if (l.start < t) r = l.start; else break; } return r; }
+function prevSubStart() {
+  // mid-line → previous = the line *before* the current one (not the current
+  // line's own start); in a gap → the most recent line that has started.
+  const t = video.currentTime, act = activeAt(t);
+  const ref = act.length ? act[act.length - 1].start : t + 0.001;
+  let r = null;
+  for (const l of emitted) { if (l.start < ref) r = l.start; else break; } return r; }
 function nextSubStart() { const t = video.currentTime + 0.05;
   for (const l of emitted) if (l.start > t) return l.start; return null; }
 function currentLineForNote() { const n = $("#flagbar").dataset.curn;
